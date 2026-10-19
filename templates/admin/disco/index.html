@@ -1,0 +1,28 @@
+{% extends "admin/base_site.html" %}
+{% block nav-breadcrumbs %}{% endblock %}
+{% block content %}
+<div class="disco-workspace">
+  <section class="disco-welcome">
+    <div><p class="disco-eyebrow">ВАША КОМАНДА · ВАШИ СПИСКИ</p><h1>Все регистрации — в одном месте</h1><p>Люди заполняют форму. Вы скачиваете список, сверяете его с организаторами и отправляете билеты отдельно.</p></div>
+    <a class="disco-button disco-button-secondary" href="{% url 'admin:disco_help' %}">Как это работает →</a>
+  </section>
+  <p class="disco-assurance"><span aria-hidden="true">✓</span> Здесь нет автоматических рассылок. Ни сохранение заявки, ни изменение статуса не отправляет письма или билеты.</p>
+  {% if can_view_registrations %}
+  <section class="disco-stats" aria-label="Сводка заявок">
+    <a class="disco-stat" href="{% url 'admin:registrations_registration_changelist' %}"><span>Все заявки</span><strong>{{ stats.total }}</strong><small>Открыть общий список →</small></a>
+    <a class="disco-stat" href="{% url 'admin:registrations_registration_changelist' %}?status__exact=PENDING"><span>На проверке</span><strong>{{ stats.pending }}</strong><small>Ещё не сверены с организаторами</small></a>
+    <a class="disco-stat" href="{% url 'admin:registrations_registration_changelist' %}?status__exact=APPROVED"><span>Подтверждено</span><strong>{{ stats.approved }}</strong><small>Участие согласовано вашей командой</small></a>
+    <a class="disco-stat" href="{% url 'admin:registrations_registration_changelist' %}?status__exact=REJECTED"><span>Не подтверждено</span><strong>{{ stats.rejected }}</strong><small>Заявки сохранены для вашей команды</small></a>
+    <a class="disco-stat" href="{% url 'admin:registrations_registration_changelist' %}?status__exact=TICKET_SENT"><span>Билет отправлен отдельно</span><strong>{{ stats.ticket_sent }}</strong><small>Ваша отметка об отправке в другой программе</small></a>
+  </section>
+  <section class="disco-panel disco-primary-task"><div><span class="disco-eyebrow">САМЫЙ ПРОСТОЙ СЦЕНАРИЙ</span><h2>Нужен только файл со списком?</h2><p>Скачайте CSV и откройте его в Excel или Google Таблицах. Менять статусы необязательно.</p></div><a class="disco-button" href="{% url 'admin:registrations_registration_export' %}">Скачать все заявки · CSV ↓</a></section>
+  {% endif %}
+  {% if can_view_campaigns %}
+  <section class="disco-section"><div class="disco-section-heading"><div><h2>Страницы регистрации</h2><p>У каждой страницы — своя ссылка, тексты и список людей.</p></div>{% if can_add_campaigns %}<a class="disco-button disco-button-secondary" href="{% url 'admin:registrations_registrationcampaign_add' %}">+ Создать страницу</a>{% endif %}</div>
+    <div class="disco-campaign-grid">{% for campaign in campaigns %}<article class="disco-panel disco-campaign-card"><div class="disco-card-heading"><h3>{{ campaign.internal_name }}</h3>{% if campaign.is_open %}<span class="status-badge status-approved">Приём открыт</span>{% else %}<span class="status-badge status-rejected">Приём закрыт</span>{% endif %}</div><p class="disco-muted">Заявок: {{ campaign.total }} · /r/{{ campaign.slug }}/</p><div class="disco-card-actions">{% if can_view_registrations %}<a class="disco-button disco-button-small" href="{% url 'admin:registrations_registration_changelist' %}?campaign__id__exact={{ campaign.pk }}">Посмотреть заявки</a>{% endif %}<a href="{% url 'admin:registrations_registrationcampaign_change' campaign.pk %}">Настроить страницу</a><a href="{% url 'register' campaign.slug %}" target="_blank" rel="noopener">Открыть форму</a></div></article>{% empty %}<div class="disco-panel"><h3>Пока нет страниц регистрации</h3><p>Создайте первую страницу, заполните тексты и отправьте её публичную ссылку участникам.</p></div>{% endfor %}</div><p><a href="{% url 'admin:registrations_registrationcampaign_changelist' %}">Все страницы регистрации →</a></p>
+  </section>{% endif %}
+  {% if can_view_registrations %}<section class="disco-panel disco-workflow"><h2>Что делать с заявками</h2><ol><li><strong>Собрать контакты</strong><span>Отправьте людям публичную ссылку нужной страницы.</span></li><li><strong>Скачать и сверить</strong><span>Выгрузите список и согласуйте его с организаторами.</span></li><li><strong>Отправить отдельно</strong><span>Билеты отправляются в вашей другой программе.</span></li></ol></section>{% endif %}
+  {% if perms.auth.view_user or perms.auth.change_user %}<details class="disco-advanced"><summary>Управление доступом для команды</summary><p>Этот раздел нужен только для создания и настройки аккаунтов организаторов.</p><a href="{% url 'admin:auth_user_changelist' %}">Пользователи кабинета →</a></details>{% endif %}
+  {% if not can_view_registrations and not can_view_campaigns %}<div class="disco-panel"><h2>Доступ к спискам пока не выдан</h2><p>Попросите администратора предоставить права просмотра заявок или страниц регистрации.</p></div>{% endif %}
+</div>
+{% endblock %}

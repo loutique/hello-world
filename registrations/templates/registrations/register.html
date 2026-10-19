@@ -1,3 +1,89 @@
-{% load static %}<!doctype html>
-<html lang="uk"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"><meta name="robots" content="noindex,nofollow"><title>{{ campaign.public_title }} · DISCO UKRAÏNA</title><link rel="stylesheet" href="{% static 'registrations/site.css' %}"></head>
-<body><main><header><a class="brand" href="">DISCO UKRAÏNA<span class="flag" aria-hidden="true"></span></a><span class="edition">СПІЛЬНОТА · МУЗИКА · СВОЇ</span></header><div class="layout"><section class="story"><div class="orb" aria-hidden="true"><div class="star">✦</div></div><p class="eyebrow">ЗУСТРІЧАЄМОСЯ НА ТАНЦПОЛІ</p><h1>{{ campaign.public_title }}</h1>{% if campaign.public_subtitle %}<p class="subtitle">{{ campaign.public_subtitle }}</p>{% endif %}<div class="intro">{{ campaign.intro_text|linebreaks }}</div><p class="disclaimer">Реєстрація не гарантує отримання квитка. Кожну заявку ми розглядаємо окремо.</p></section><section class="card" aria-label="Реєстрація">{% if success %}<span class="step">ЗАЯВКУ ОТРИМАНО</span><h2>Дякуємо! <span>✦</span></h2><div role="status">{{ campaign.success_text|linebreaks }}</div>{% elif not campaign.is_open %}<span class="step">РЕЄСТРАЦІЯ ЗАКРИТА</span><h2>До наступної зустрічі</h2>{{ campaign.closed_text|linebreaks }}{% else %}<span class="step">ВАШ ПЕРШИЙ КРОК ДО ЗУСТРІЧІ</span><h2>Будьмо на зв’язку <span>✦</span></h2><p class="hint">Залиште контакти — решту узгодимо особисто.</p><form method="post">{% csrf_token %}{{ form.non_field_errors }}<div class="fields">{% for field in form %}<div class="field"><label for="{{ field.id_for_label }}">{{ field.label }}</label>{{ field }}{{ field.errors }}</div>{% endfor %}</div><button type="submit">Надіслати заявку <svg aria-hidden="true" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5"><path d="M5 19 19 5M5 5h14v14"/></svg></button><p class="privacy">{{ campaign.privacy_text }}</p></form>{% endif %}<div class="card-footer"><span>01 · РЕЄСТРАЦІЯ</span><span>02 · ПЕРЕВІРКА</span><span>03 · ЗАПРОШЕННЯ</span></div></section></div><footer><span>DISCO UKRAÏNA</span><span>Об’єднані музикою. Натхненні Україною.</span><span class="footer-star">✦</span></footer></main></body></html>
+{% load static registration_content %}
+<!doctype html>
+<html lang="uk">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <meta name="robots" content="noindex,nofollow">
+  <meta name="theme-color" content="#481b17">
+  <title>{{ campaign.public_title }} · DISCO UKRAÏNA</title>
+  <link rel="stylesheet" href="{% static 'registrations/site.css' %}">
+</head>
+<body class="{% if campaign.visual_style == 'veles2026' %}theme-veles{% else %}theme-classic{% endif %}">
+  <div class="page-shell">
+    <header class="site-header">
+      <a class="brand" href="" aria-label="DISCO UKRAÏNA — ця сторінка">DISCO UKRAÏNA<span class="flag" aria-hidden="true"></span></a>
+      <span class="header-caption">МУЗИКА. СПІЛЬНОТА. СВОЇ.</span>
+      {% if campaign.is_open and not success %}<a class="form-jump" href="#registration">До форми <span aria-hidden="true">↓</span></a>{% endif %}
+    </header>
+    <main class="registration-layout">
+      {% if campaign.visual_style == 'veles2026' %}
+      <aside class="event-visual" aria-label="Афіша події">
+        <figure class="poster">
+          <a href="{% static 'registrations/artwork/veles-2026.jpg' %}" target="_blank" rel="noopener" aria-label="Відкрити афішу «Велесова ніч» у повному розмірі">
+            <img src="{% static 'registrations/artwork/veles-2026.jpg' %}"
+                 srcset="{% static 'registrations/artwork/veles-2026-small.jpg' %} 569w, {% static 'registrations/artwork/veles-2026.jpg' %} 1137w"
+                 sizes="(max-width: 850px) 260px, (max-width: 1200px) 40vw, 490px"
+                 width="1137" height="1600" fetchpriority="high"
+                 alt="Велесова ніч — український Гелловін у Тель-Авіві, 30 жовтня. Блискучий помаранчевий гарбуз із написом DISCO UKRAÏNA.">
+          </a>
+          <figcaption><span class="poster-dot" aria-hidden="true"></span> ТРОХИ МАГІЇ. БАГАТО МУЗИКИ.</figcaption>
+        </figure>
+      </aside>
+      {% else %}
+      <aside class="event-visual universal-visual" aria-hidden="true">
+        <div class="universal-spark">✦</div><p>ОБ’ЄДНАНІ<br>МУЗИКОЮ.</p><span>НАТХНЕННІ УКРАЇНОЮ.</span>
+      </aside>
+      {% endif %}
+      <section class="registration-content" aria-labelledby="page-title">
+        <p class="eyebrow"><span aria-hidden="true"></span> ЗУСТРІНЕМОСЯ НА ТАНЦПОЛІ</p>
+        <h1 id="page-title">{{ campaign.public_title }}</h1>
+        {% if campaign.public_subtitle %}<p class="event-subtitle">{{ campaign.public_subtitle }}</p>{% endif %}
+        {% if not success and campaign.is_open %}<div class="intro">{{ campaign.intro_text|linebreaks }}</div>{% endif %}
+        {% if not success %}
+        {% if campaign.event_summary or campaign.event_description or campaign.event_starts_at or campaign.event_venue or campaign.event_address %}
+        <section class="event-information" aria-labelledby="event-information-title">
+          <h2 id="event-information-title">{{ campaign.event_title }}</h2>
+          {% if campaign.event_starts_at or campaign.event_venue or campaign.event_address %}
+          <dl class="event-facts">
+            {% if campaign.event_starts_at %}<div><dt>КОЛИ</dt><dd><time datetime="{{ campaign.event_starts_at|date:'c' }}">{{ campaign.event_starts_at|date:"l, j E Y" }}<br><strong>{{ campaign.event_starts_at|date:"H:i" }}</strong><small> · час Ізраїлю</small></time></dd></div>{% endif %}
+            {% if campaign.event_venue or campaign.event_address %}<div><dt>ДЕ</dt><dd><strong>{{ campaign.event_venue }}</strong>{% if campaign.event_address %}<span>{{ campaign.event_address }}</span>{% endif %}</dd></div>{% endif %}
+          </dl>{% endif %}
+          {% if campaign.event_summary %}<div class="event-summary">{{ campaign.event_summary|linebreaks }}</div>{% endif %}
+          {% if campaign.event_description %}<details class="event-more"><summary>Програма, костюми та корисні деталі <span aria-hidden="true">+</span></summary><div class="event-details-copy">{% for paragraph in campaign.event_description|event_paragraphs %}{% if paragraph.title %}<h3>{{ paragraph.title }}</h3>{% endif %}<p>{{ paragraph.body|linebreaksbr }}</p>{% endfor %}</div></details>{% endif %}
+          {% if campaign.event_info_url %}<a href="{{ campaign.event_info_url }}" target="_blank" rel="noopener">Докладніше про подію <span aria-hidden="true">→</span></a>{% endif %}
+        </section>
+        {% endif %}
+        {% endif %}
+        <section class="registration-card" id="registration" aria-label="Форма реєстрації">
+          {% if success %}
+            <div class="confirmation-icon" aria-hidden="true">✓</div>
+            <p class="card-eyebrow">ЗАЯВКУ ЗБЕРЕЖЕНО</p>
+            <h2>Дякуємо, що Ви з нами!</h2>
+            <div class="confirmation-copy" role="status">{{ campaign.success_text|linebreaks }}</div>
+            <p class="quiet-note">Це підтвердження отримання заявки. Воно не є квитком.</p>
+          {% elif not campaign.is_open %}
+            <p class="card-eyebrow">ПРИЙОМ ЗАЯВОК ЗАКРИТО</p>
+            <h2>До наступної зустрічі!</h2>
+            <div class="confirmation-copy">{{ campaign.closed_text|linebreaks }}</div>
+          {% else %}
+            <div class="card-heading"><div><p class="card-eyebrow">ЛИШЕ ЧОТИРИ ПОЛЯ</p><h2>Залиште свої контакти</h2></div><span class="card-spark" aria-hidden="true">✦</span></div>
+            <p class="card-hint">Щоб організатори могли опрацювати Вашу заявку.</p>
+            <form method="post">
+              {% csrf_token %}
+              {% if form.errors %}<div class="form-error-summary" role="alert"><strong>Перевірте, будь ласка, дані.</strong>{% if form.non_field_errors %}{{ form.non_field_errors }}{% else %}<p>Підказки є під відповідними полями.</p>{% endif %}</div>{% endif %}
+              <div class="form-fields">
+                {% for field in form %}<div class="field {% if field.errors %}field-invalid{% endif %}"><label for="{{ field.id_for_label }}">{{ field.label }}</label>{{ field }}{% if field.name == 'phone' %}<p class="field-hint">Ізраїльський номер або міжнародний із кодом країни.</p>{% endif %}{{ field.errors }}</div>{% endfor %}
+              </div>
+              <button class="submit-button" type="submit">Надіслати заявку <svg aria-hidden="true" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6"><path d="M5 12h14M13 6l6 6-6 6"/></svg></button>
+              <p class="privacy">{{ campaign.privacy_text }}</p>
+            </form>
+          {% endif %}
+        </section>
+        <div class="registration-note"><span aria-hidden="true">i</span><p>Реєстрація не гарантує отримання квитка. Ця сторінка лише збирає заявки; квитки організатори надсилають окремо після погодження.</p></div>
+      </section>
+    </main>
+    <footer class="site-footer"><strong>DISCO UKRAÏNA</strong><span>Об’єднані музикою. Натхненні Україною.</span><span class="footer-spark" aria-hidden="true">✦</span></footer>
+  </div>
+</body>
+</html>

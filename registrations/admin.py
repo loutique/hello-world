@@ -12,6 +12,7 @@ from django.utils import timezone
 from django.utils.html import format_html
 
 from .models import RegistrationCampaign, Registration
+from .forms import CampaignAdminForm
 
 
 STATUS_HELP = {
@@ -48,24 +49,39 @@ def csv_response(queryset):
 
 @admin.register(RegistrationCampaign)
 class CampaignAdmin(admin.ModelAdmin):
+    form = CampaignAdminForm
     change_list_template = "admin/disco/campaign_list.html"
     change_form_template = "admin/disco/campaign_form.html"
     list_display = ["internal_name", "public_page", "availability", "total", "pending", "approved", "rejected", "ticket_sent", "registration_list"]
     list_filter = ["is_active"]
     search_fields = ["internal_name", "slug"]
     search_help_text = "Поиск по внутреннему названию или адресу страницы."
-    readonly_fields = ["created_at", "updated_at", "public_page"]
+    readonly_fields = ["created_at", "updated_at", "public_page", "share_image_preview"]
     list_per_page = 30
     fieldsets = [
         ("1. Название и ссылка", {"fields": ["internal_name", "slug"], "description": "Внутреннее название — для команды. Адрес страницы — для ссылки, которую вы отправите людям."}),
         ("2. Что увидят посетители", {"fields": ["visual_style", "public_title", "public_subtitle", "intro_text", "success_text", "privacy_text"], "description": "Публичные тексты пишите по-украински. После сохранения они сразу появятся на странице регистрации."}),
         ("3. О мероприятии", {"fields": ["event_title", "event_starts_at", "event_venue", "event_address", "event_summary", "event_description", "event_info_url"], "description": "Этот блок объяснит участникам, куда они регистрируются. Он расположен перед формой отдельно от обращения к волонтёрам."}),
         ("4. Открыть или закрыть регистрацию", {"fields": ["is_active", "closes_at", "closed_text"], "description": "Закрытие убирает форму, но сохраняет все собранные заявки. Ограничений количества регистраций нет."}),
+        ("5. Картинка при отправке ссылки в WhatsApp", {"fields": ["share_image_preview", "share_image", "share_image_alt", "remove_share_image"], "description": "Это картинка для превью ссылки в мессенджерах. Она не заменяет афишу внутри страницы и не отправляется людям автоматически."}),
         ("Служебная информация", {"fields": ["public_page", "created_at", "updated_at"], "classes": ["collapse"]}),
     ]
 
     def has_delete_permission(self, request, obj=None):
         return False
+
+    @admin.display(description="Текущая картинка")
+    def share_image_preview(self, obj):
+        if not obj or not obj.share_image_hash:
+            return "Отдельная картинка не загружена. Для оформления «Велесова ніч» используется афиша; в универсальном оформлении пока будет только текстовое превью."
+        url = reverse("campaign_preview_image", args=[obj.slug, obj.share_image_hash])
+        return format_html('<a href="{}" target="_blank" rel="noopener"><img src="{}" alt="{}" style="max-width:260px;max-height:170px;width:auto;height:auto;border-radius:6px"></a><p>{} × {} пикселей · {} КБ после обработки. Открыть картинку можно нажатием на неё.</p>', url, url, obj.share_image_alt or obj.public_title, obj.share_image_width, obj.share_image_height, (obj.share_image_size + 1023) // 1024)
+
+    def get_fieldsets(self, request, obj=None):
+        fieldsets = super().get_fieldsets(request, obj)
+        if not self.has_change_permission(request, obj) and not (obj is None and self.has_add_permission(request)):
+            return [(name, {**options, "fields": [field for field in options["fields"] if field not in {"share_image", "remove_share_image"}]}) for name, options in fieldsets]
+        return fieldsets
 
     def get_list_display(self, request):
         fields = list(super().get_list_display(request))
@@ -74,7 +90,7 @@ class CampaignAdmin(admin.ModelAdmin):
         return fields
 
     def get_queryset(self, request):
-        return super().get_queryset(request).annotate(total_count=Count("registrations"), **{
+        return super().get_queryset(request).defer("share_image_data").annotate(total_count=Count("registrations"), **{
             status.lower() + "_count": Count("registrations", filter=Q(registrations__status=status))
             for status in Registration.Status.values
         })
@@ -136,6 +152,9 @@ class RegistrationAdmin(admin.ModelAdmin):
         ("Проверка с организаторами", {"fields": ["status", "admin_notes"], "description": "Эти поля видны только команде. Посетитель не получает уведомлений об изменениях."}),
         ("Даты внутренних отметок", {"fields": ["updated_at", "approved_at", "rejected_at", "ticket_sent_at"], "classes": ["collapse"], "description": "Здесь хранятся последние даты соответствующих отметок. Это не подтверждение автоматической отправки билетов."}),
     ]
+
+    def get_queryset(self, request):
+        return super().get_queryset(request).defer("campaign__share_image_data")
 
     def has_add_permission(self, request): return False
     def has_delete_permission(self, request, obj=None): return False

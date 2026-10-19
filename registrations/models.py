@@ -8,6 +8,13 @@ class RegistrationCampaign(models.Model):
         VELES = "veles2026", "Велесова ніч 2026 — с афишей мероприятия"
 
     visual_style = models.CharField("Оформление страницы", max_length=20, choices=VisualStyle.choices, default=VisualStyle.CLASSIC, help_text="Выберите оформление с афишей для ближайшей вечеринки или универсальное для других событий. Тексты ниже можно менять в обоих вариантах.")
+    share_image_data = models.BinaryField(null=True, blank=True, editable=False)
+    share_image_hash = models.CharField(max_length=64, blank=True, editable=False)
+    share_image_size = models.PositiveIntegerField(default=0, editable=False)
+    share_image_mime = models.CharField(max_length=32, blank=True, editable=False)
+    share_image_width = models.PositiveIntegerField(null=True, blank=True, editable=False)
+    share_image_height = models.PositiveIntegerField(null=True, blank=True, editable=False)
+    share_image_alt = models.CharField("Описание картинки", max_length=200, blank=True, help_text="Необязательно. Коротко опишите изображение на украинском для доступности. Если оставить пустым, используем заголовок страницы.")
     seed_key = models.CharField(max_length=80, null=True, blank=True, unique=True, editable=False)
     internal_name = models.CharField("Название для команды", max_length=160, help_text="Видно только в админке. Например: Здибанки — волонтёры, 30 октября.")
     slug = models.SlugField("Адрес страницы", unique=True, help_text="Часть ссылки после /r/. Только маленькие латинские буквы, цифры и одиночные дефисы: zdybanky, special-guests. После изменения старая ссылка перестанет работать.", validators=[RegexValidator(r"^[a-z0-9]+(?:-[a-z0-9]+)*$", "Используйте маленькие латинские буквы, цифры и одиночные дефисы.")])

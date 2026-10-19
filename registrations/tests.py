@@ -311,12 +311,174 @@ class WorkflowTests(TestCase):
         self.assertContains(response, "https://example.org/event")
         self.assertNotContains(response, "<script>alert(1)</script>")
 
+    def preview_metadata(self, response):
+        from html.parser import HTMLParser
+
+        class HeadParser(HTMLParser):
+            def __init__(self):
+                super().__init__()
+                self.values = {}
+
+            def handle_starttag(self, tag, attrs):
+                attrs = dict(attrs)
+                if tag == "meta":
+                    self.values[attrs.get("property", attrs.get("name"))] = attrs.get("content")
+                if tag == "link" and attrs.get("rel") == "canonical":
+                    self.values["canonical"] = attrs.get("href")
+
+        parser = HeadParser()
+        parser.feed(response.content.decode())
+        return parser.values
+
+    def test_whatsapp_preview_is_public_and_has_absolute_image_url(self):
+        self.campaign.visual_style = "veles2026"
+        self.campaign.public_title = 'Волонтери "Здибанки"'
+        self.campaign.event_summary = "Музика, танці та гарний настрій."
+        self.campaign.save()
+        response = self.client.get(self.url, secure=True, HTTP_USER_AGENT="WhatsApp/2")
+        self.assertEqual(response.status_code, 200)
+        meta = self.preview_metadata(response)
+        self.assertEqual(meta["og:title"], 'Волонтери "Здибанки" · DISCO UKRAÏNA')
+        self.assertEqual(meta["og:description"], "Музика, танці та гарний настрій.")
+        self.assertEqual(meta["og:url"], "https://testserver" + self.url)
+        self.assertEqual(meta["canonical"], meta["og:url"])
+        self.assertEqual(meta["og:image"], "https://testserver/static/registrations/artwork/veles-2026-small.jpg")
+        self.assertEqual(meta["og:image:type"], "image/jpeg")
+        self.assertEqual(meta["og:image:width"], "569")
+        self.assertEqual(meta["og:image:height"], "800")
+
+    def test_preview_never_includes_query_or_submitted_contact_data(self):
+        response = self.client.get(self.url, {"email": "private@example.org", "phone": "0502345678", "submitted": "1"})
+        meta = self.preview_metadata(response)
+        self.assertNotIn("private@example.org", str(meta))
+        self.assertNotIn("0502345678", str(meta))
+        self.assertNotIn("?", meta["og:url"])
+        response = self.submit(email="private@example.org", phone="invalid")
+        self.assertNotIn("private@example.org", str(self.preview_metadata(response)))
+
+    def test_preview_matches_campaign_style_slug_and_closed_state(self):
+        self.other.slug = "new-guests"
+        self.other.save()
+        response = self.client.get(reverse("register", args=[self.other.slug]))
+        meta = self.preview_metadata(response)
+        self.assertEqual(meta["og:title"], "Партнери · DISCO UKRAÏNA")
+        self.assertNotIn("og:image", meta)
+        self.assertTrue(meta["canonical"].endswith("/r/new-guests/"))
+        self.campaign.is_active = False
+        self.campaign.closed_text = "Реєстрацію завершено. До наступної зустрічі!"
+        self.campaign.save()
+        meta = self.preview_metadata(self.client.get(self.url))
+        self.assertEqual(meta["og:description"], self.campaign.closed_text)
+
+    def image_upload(self, width=1200, height=630, image_format="JPEG", color="orange", with_exif=False):
+        from PIL import Image
+        from django.core.files.uploadedfile import SimpleUploadedFile
+        data = io.BytesIO()
+        image = Image.new("RGB", (width, height), color)
+        kwargs = {}
+        if with_exif:
+            exif = Image.Exif()
+            exif[270] = "Private camera details"
+            kwargs["exif"] = exif
+        image.save(data, image_format, **kwargs)
+        return SimpleUploadedFile("preview." + ("jpg" if image_format == "JPEG" else "png"), data.getvalue(), content_type="image/jpeg" if image_format == "JPEG" else "image/png")
+
+    def test_admin_upload_is_persistent_and_used_in_link_preview(self):
+        from PIL import Image
+        self.login()
+        url = reverse("admin:registrations_registrationcampaign_change", args=[self.campaign.pk])
+        data = self.campaign_data() | {"slug": self.campaign.slug, "share_image": self.image_upload(with_exif=True), "share_image_alt": "Помаранчева афіша"}
+        response = self.client.post(url, data)
+        self.assertEqual(response.status_code, 302)
+        self.campaign.refresh_from_db()
+        self.assertTrue(self.campaign.share_image_data)
+        self.assertEqual(self.campaign.share_image_width, 1200)
+        self.assertEqual(self.campaign.share_image_height, 630)
+        image = Image.open(io.BytesIO(bytes(self.campaign.share_image_data)))
+        self.assertFalse(image.getexif())
+        public = self.client.get(self.url)
+        meta = self.preview_metadata(public)
+        image_url = reverse("campaign_preview_image", args=[self.campaign.slug, self.campaign.share_image_hash])
+        self.assertTrue(meta["og:image"].endswith(image_url))
+        self.assertEqual(meta["og:image:alt"], "Помаранчева афіша")
+        guest = Client()
+        response = guest.get(image_url)
+        self.assertEqual(response.status_code, 200)
+        self.assertEqual(response["Content-Type"], "image/jpeg")
+        self.assertEqual(response["X-Content-Type-Options"], "nosniff")
+        self.assertEqual(Image.open(io.BytesIO(response.content)).size, (1200, 630))
+        self.assertEqual(guest.head(image_url).status_code, 200)
+        self.assertEqual(guest.get(image_url, HTTP_IF_NONE_MATCH=response["ETag"]).status_code, 304)
+        # Saving other fields must not erase the uploaded image.
+        image_hash = self.campaign.share_image_hash
+        response = self.client.post(url, self.campaign_data() | {"slug": self.campaign.slug})
+        self.assertEqual(response.status_code, 302)
+        self.campaign.refresh_from_db()
+        self.assertEqual(self.campaign.share_image_hash, image_hash)
+
+    def test_upload_replacement_removal_and_fallback(self):
+        from registrations.forms import CampaignAdminForm
+        from PIL import Image
+        form = CampaignAdminForm(data=self.campaign_data(), files={"share_image": self.image_upload()}, instance=self.campaign)
+        self.assertTrue(form.is_valid(), form.errors)
+        form.save()
+        previous = self.campaign.share_image_hash
+        form = CampaignAdminForm(data=self.campaign_data(), files={"share_image": self.image_upload(image_format="PNG", color="blue")}, instance=self.campaign)
+        self.assertTrue(form.is_valid(), form.errors)
+        form.save()
+        self.assertNotEqual(self.campaign.share_image_hash, previous)
+        image_url = reverse("campaign_preview_image", args=[self.campaign.slug, self.campaign.share_image_hash])
+        response = self.client.get(image_url)
+        self.assertEqual(response["Content-Type"], "image/png")
+        self.assertEqual(Image.open(io.BytesIO(response.content)).format, "PNG")
+        old_url = reverse("campaign_preview_image", args=[self.campaign.slug, previous])
+        self.assertEqual(self.client.get(old_url).status_code, 404)
+        form = CampaignAdminForm(data=self.campaign_data() | {"remove_share_image": "on", "visual_style": "veles2026"}, instance=self.campaign)
+        self.assertTrue(form.is_valid(), form.errors)
+        form.save()
+        self.assertIsNone(self.campaign.share_image_data)
+        self.assertEqual(self.client.get(image_url).status_code, 404)
+        meta = self.preview_metadata(self.client.get(reverse("register", args=[self.campaign.slug])))
+        self.assertIn("veles-2026-small.jpg", meta["og:image"])
+
+    def test_invalid_images_and_conflicting_actions_are_rejected(self):
+        from registrations.forms import CampaignAdminForm
+        from django.core.files.uploadedfile import SimpleUploadedFile
+        invalid = [
+            SimpleUploadedFile("bad.jpg", b"<svg><script>alert(1)</script></svg>", content_type="image/jpeg"),
+            SimpleUploadedFile("huge.jpg", b"x" * (1024 * 1024 + 1), content_type="image/jpeg"),
+            self.image_upload(100, 100),
+            self.image_upload(4200, 200),
+        ]
+        for image in invalid:
+            with self.subTest(filename=image.name, size=image.size):
+                form = CampaignAdminForm(data=self.campaign_data(), files={"share_image": image}, instance=self.campaign)
+                self.assertFalse(form.is_valid())
+                self.assertIn("share_image", form.errors)
+        form = CampaignAdminForm(data=self.campaign_data() | {"remove_share_image": "on"}, files={"share_image": self.image_upload()}, instance=self.campaign)
+        self.assertFalse(form.is_valid())
+        self.assertIn("__all__", form.errors)
+
+    def test_image_upload_is_restricted_to_campaign_editors(self):
+        from django.contrib.auth.models import Permission
+        self.login()
+        url = reverse("admin:registrations_registrationcampaign_change", args=[self.campaign.pk])
+        self.assertContains(self.client.get(url), "1200 × 630")
+        self.assertContains(self.client.get(url), 'enctype="multipart/form-data"')
+        staff = get_user_model().objects.create_user("image-viewer", is_staff=True)
+        staff.user_permissions.add(Permission.objects.get(codename="view_registrationcampaign", content_type__app_label="registrations"))
+        self.client.force_login(staff)
+        response = self.client.get(url)
+        self.assertEqual(response.status_code, 200)
+        self.assertNotContains(response, 'type="file"')
+        self.assertEqual(self.client.post(url, self.campaign_data() | {"share_image": self.image_upload()}).status_code, 403)
+
 
 class CampaignUpgradeTests(TransactionTestCase):
     """An existing event can upgrade without losing registrations or organizer edits."""
 
     migrate_from = ("registrations", "0003_registrationcampaign_seed_key")
-    migrate_to = ("registrations", "0009_fill_initial_event_information")
+    migrate_to = ("registrations", "0010_registrationcampaign_share_image_alt_and_more")
 
     def tearDown(self):
         from django.db import connection

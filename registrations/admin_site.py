@@ -30,7 +30,7 @@ class DiscoAdminSite(AdminSite):
                 for status in Registration.Status.values
             })
         if context["can_view_campaigns"]:
-            context["campaigns"] = RegistrationCampaign.objects.annotate(total=Count("registrations")).order_by("-created_at")[:8]
+            context["campaigns"] = RegistrationCampaign.objects.defer("share_image_data").annotate(total=Count("registrations")).order_by("-created_at")[:8]
         context.update({"title": self.index_title, "app_list": self.get_app_list(request), **(extra_context or {})})
         return TemplateResponse(request, self.index_template, context)
 

@@ -112,6 +112,9 @@ from .public_copy import COPY_FIELDS
 for _key, (_label, _default, _required, _multiline) in COPY_FIELDS.items():
     if isinstance(_default, bool):
         _field = forms.BooleanField(label=_label, required=False, initial=_default)
+    elif _key == "instagram_url":
+        _field = forms.URLField(label=_label, required=False, initial=_default, max_length=240,
+            help_text="Полный адрес https://… Оставьте пустым, чтобы скрыть весь блок Instagram после регистрации.")
     else:
         _field = forms.CharField(label=_label, required=_required, initial=_default,
             max_length=2000 if _multiline else 240,

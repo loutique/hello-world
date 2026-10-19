@@ -111,3 +111,10 @@ input:focus { border-color: #3574ab; }
 .event-details-copy h3:first-child { margin-top: 0; }
 .event-more summary:focus-visible { outline: 2px solid #ffc35b; outline-offset: 5px; }
 @media (max-width: 370px) { .event-facts { grid-template-columns: 1fr; gap: 12px; } }
+
+.instagram-invitation { margin-top: 24px; padding: 22px 0 0; border-top: 1px solid #dfcfb9; }
+.instagram-invitation h3 { margin: 0 0 8px; font-size: 20px; line-height: 1.3; color: #573147; }
+.instagram-invitation p { margin: 0 0 18px; color: #675446; font-size: 13px; line-height: 1.75; }
+.instagram-button { display: inline-flex; align-items: center; justify-content: center; gap: 10px; padding: 13px 17px; max-width: 100%; border-radius: 10px; background: linear-gradient(115deg, #803bb0, #b32b68 65%, #ae3b2b); color: #fff; text-decoration: none; font-size: 13px; font-weight: 700; box-shadow: 0 5px 16px #803baf22; }
+.instagram-button svg { flex-shrink: 0; }
+.instagram-button:hover { filter: brightness(1.1); }

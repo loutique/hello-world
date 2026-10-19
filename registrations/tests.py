@@ -24,6 +24,29 @@ class WorkflowTests(TestCase):
         response = self.client.get(self.url)
         self.assertContains(response, "Волонтери")
         self.assertContains(response, 'lang="uk"')
+    def test_instagram_invitation_only_after_registration_and_is_editable(self):
+        url = "/r/volunteers/"
+        self.assertNotContains(self.client.get(url), 'class="instagram-invitation"')
+        response = self.client.get(url + "?submitted=1")
+        self.assertContains(response, 'href="https://www.instagram.com/nezalezhna.il/"')
+        self.assertContains(response, "Підписатися в Instagram")
+        self.campaign.page_texts = {"instagram_url": "https://www.instagram.com/example/", "instagram_heading": "Разом!", "instagram_text": "Наші новини", "instagram_label": "До Instagram"}
+        self.campaign.save()
+        response = self.client.get(url + "?submitted=1")
+        self.assertContains(response, "Наші новини")
+        self.assertContains(response, 'href="https://www.instagram.com/example/"')
+        self.campaign.page_texts["instagram_url"] = ""
+        self.campaign.save()
+        self.assertNotContains(self.client.get(url + "?submitted=1"), 'class="instagram-invitation"')
+
+    def test_instagram_url_rejects_unsafe_scheme(self):
+        self.client.force_login(self.admin)
+        data = self.campaign_data()
+        data["copy_instagram_url"] = "javascript:alert(1)"
+        response = self.client.post("/admin/registrations/registrationcampaign/add/", data)
+        self.assertEqual(response.status_code, 200)
+        self.assertIn("copy_instagram_url", response.context["adminform"].form.errors)
+
     def test_success(self):
         response = self.submit()
         self.assertRedirects(response, self.url+"?submitted=1")

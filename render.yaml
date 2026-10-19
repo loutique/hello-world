@@ -1,0 +1,43 @@
+# Creating this Blueprint provisions paid resources. Review current prices in
+# Render before confirming deployment. The database must remain persistent.
+databases:
+  - name: disco-ukraina-db
+    databaseName: disco
+    user: disco
+    plan: basic-256mb
+    region: frankfurt
+    ipAllowList: []
+
+services:
+  - type: web
+    name: disco-ukraina
+    runtime: docker
+    plan: starter
+    region: frankfurt
+    autoDeploy: false
+    healthCheckPath: /health/
+    envVars:
+      - key: DJANGO_SECRET_KEY
+        generateValue: true
+      - key: DEBUG
+        value: "0"
+      - key: TRUST_PROXY_SSL
+        value: "1"
+      - key: POSTGRES_HOST
+        fromDatabase:
+          name: disco-ukraina-db
+          property: host
+      - key: POSTGRES_DB
+        fromDatabase:
+          name: disco-ukraina-db
+          property: database
+      - key: POSTGRES_USER
+        fromDatabase:
+          name: disco-ukraina-db
+          property: user
+      - key: POSTGRES_PASSWORD
+        fromDatabase:
+          name: disco-ukraina-db
+          property: password
+      - key: POSTGRES_PORT
+        value: "5432"

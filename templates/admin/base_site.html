@@ -1,8 +1,9 @@
 {% extends "admin/base.html" %}
 {% load static %}
 {% block title %}{{ title }} · DISCO UKRAÏNA{% endblock %}
+{% block dark-mode-vars %}<link rel="stylesheet" href="{% static 'admin/css/dark_mode.css' %}"><script src="{% static 'registrations/admin-theme.js' %}"></script>{% endblock %}
 {% block extrastyle %}{{ block.super }}<link rel="stylesheet" href="{% static 'registrations/admin.css' %}">{% endblock %}
 {% block extrahead %}{{ block.super }}<script src="{% static 'registrations/admin.js' %}" defer></script>{% endblock %}
 {% block branding %}<div id="site-name"><a href="{% url 'admin:index' %}">DISCO UKRAÏNA<span class="brand-caption">Кабинет организатора</span></a></div>{% endblock %}
-{% block usertools %}{% if has_permission %}<div id="user-tools"><span>{{ user.get_username }}</span><a href="{% url 'admin:password_change' %}">Сменить пароль</a><form id="logout-form" method="post" action="{% url 'admin:logout' %}">{% csrf_token %}<button type="submit">Выйти</button></form></div>{% endif %}{% endblock %}
+{% block usertools %}<div id="user-tools">{% include "admin/disco/theme_control.html" %}{% if has_permission %}<span>{{ user.get_username }}</span><a href="{% url 'admin:password_change' %}">Сменить пароль</a><form id="logout-form" method="post" action="{% url 'admin:logout' %}">{% csrf_token %}<button type="submit">Выйти</button></form>{% endif %}</div>{% endblock %}
 {% block nav-global %}{% if has_permission %}<nav class="disco-nav" aria-label="Разделы кабинета"><a href="{% url 'admin:index' %}">Обзор</a>{% if can_view_registrations %}<a href="{% url 'admin:registrations_registration_changelist' %}">Заявки</a>{% endif %}{% if can_view_campaigns %}<a href="{% url 'admin:registrations_registrationcampaign_changelist' %}">Страницы регистрации</a>{% endif %}<a href="{% url 'admin:disco_help' %}">Как пользоваться</a></nav>{% endif %}{% endblock %}

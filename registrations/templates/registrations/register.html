@@ -6,12 +6,12 @@
   <meta name="viewport" content="width=device-width, initial-scale=1">
   <meta name="robots" content="noindex,nofollow">
   <meta name="theme-color" content="#481b17">
-  <title>{{ campaign.public_title }} · DISCO UKRAÏNA</title>
+  <title>{{ link_preview.title }}</title>
   <meta name="description" content="{{ link_preview.description }}">
   <link rel="canonical" href="{{ link_preview.url }}">
   <meta property="og:type" content="website">
   <meta property="og:locale" content="uk_UA">
-  <meta property="og:site_name" content="DISCO UKRAÏNA">
+  {% if link_preview.site_name %}<meta property="og:site_name" content="{{ link_preview.site_name }}">{% endif %}
   <meta property="og:title" content="{{ link_preview.title }}">
   <meta property="og:description" content="{{ link_preview.description }}">
   <meta property="og:url" content="{{ link_preview.url }}">
@@ -34,31 +34,31 @@
 <body class="{% if campaign.visual_style == 'veles2026' %}theme-veles{% else %}theme-classic{% endif %}">
   <div class="page-shell">
     <header class="site-header">
-      <a class="brand" href="" aria-label="DISCO UKRAÏNA — ця сторінка">DISCO UKRAÏNA<span class="flag" aria-hidden="true"></span></a>
-      <span class="header-caption">МУЗИКА. СПІЛЬНОТА. СВОЇ.</span>
-      {% if campaign.is_open and not success %}<a class="form-jump" href="#registration">До форми <span aria-hidden="true">↓</span></a>{% endif %}
+      {% if public_copy.brand_name or public_copy.show_flag %}<a class="brand" href="" aria-label="{{ public_copy.brand_name|default:campaign.public_title }}">{{ public_copy.brand_name }}{% if public_copy.show_flag %}<span class="flag" aria-hidden="true"></span>{% endif %}</a>{% endif %}
+      {% if public_copy.header_tagline %}<span class="header-caption">{{ public_copy.header_tagline }}</span>{% endif %}
+      {% if campaign.is_open and not success and public_copy.jump_label %}<a class="form-jump" href="#registration">{{ public_copy.jump_label }} <span aria-hidden="true">↓</span></a>{% endif %}
     </header>
     <main class="registration-layout">
       {% if campaign.visual_style == 'veles2026' %}
-      <aside class="event-visual" aria-label="Афіша події">
+      <aside class="event-visual" aria-label="{{ public_copy.poster_alt }}">
         <figure class="poster">
-          <a href="{% static 'registrations/artwork/veles-2026.jpg' %}" target="_blank" rel="noopener" aria-label="Відкрити афішу «Велесова ніч» у повному розмірі">
+          <a href="{% static 'registrations/artwork/veles-2026.jpg' %}" target="_blank" rel="noopener" aria-label="{{ public_copy.poster_open_label }}">
             <img src="{% static 'registrations/artwork/veles-2026.jpg' %}"
                  srcset="{% static 'registrations/artwork/veles-2026-small.jpg' %} 569w, {% static 'registrations/artwork/veles-2026.jpg' %} 1137w"
                  sizes="(max-width: 850px) 260px, (max-width: 1200px) 40vw, 490px"
                  width="1137" height="1600" fetchpriority="high"
-                 alt="Велесова ніч — український Гелловін у Тель-Авіві, 30 жовтня. Блискучий помаранчевий гарбуз із написом DISCO UKRAÏNA.">
+                 alt="{{ public_copy.poster_alt }}">
           </a>
-          <figcaption><span class="poster-dot" aria-hidden="true"></span> ТРОХИ МАГІЇ. БАГАТО МУЗИКИ.</figcaption>
+          {% if public_copy.poster_caption %}<figcaption><span class="poster-dot" aria-hidden="true"></span> {{ public_copy.poster_caption }}</figcaption>{% endif %}
         </figure>
       </aside>
       {% else %}
       <aside class="event-visual universal-visual" aria-hidden="true">
-        <div class="universal-spark">✦</div><p>ОБ’ЄДНАНІ<br>МУЗИКОЮ.</p><span>НАТХНЕННІ УКРАЇНОЮ.</span>
+        <div class="universal-spark">✦</div>{% if public_copy.universal_headline %}<p>{{ public_copy.universal_headline|linebreaksbr }}</p>{% endif %}{% if public_copy.universal_subtitle %}<span>{{ public_copy.universal_subtitle }}</span>{% endif %}
       </aside>
       {% endif %}
       <section class="registration-content" aria-labelledby="page-title">
-        <p class="eyebrow"><span aria-hidden="true"></span> ЗУСТРІНЕМОСЯ НА ТАНЦПОЛІ</p>
+        {% if public_copy.eyebrow %}<p class="eyebrow"><span aria-hidden="true"></span> {{ public_copy.eyebrow }}</p>{% endif %}
         <h1 id="page-title">{{ campaign.public_title }}</h1>
         {% if campaign.public_subtitle %}<p class="event-subtitle">{{ campaign.public_subtitle }}</p>{% endif %}
         {% if not success and campaign.is_open %}<div class="intro">{{ campaign.intro_text|linebreaks }}</div>{% endif %}
@@ -68,44 +68,44 @@
           <h2 id="event-information-title">{{ campaign.event_title }}</h2>
           {% if campaign.event_starts_at or campaign.event_venue or campaign.event_address %}
           <dl class="event-facts">
-            {% if campaign.event_starts_at %}<div><dt>КОЛИ</dt><dd><time datetime="{{ campaign.event_starts_at|date:'c' }}">{{ campaign.event_starts_at|date:"l, j E Y" }}<br><strong>{{ campaign.event_starts_at|date:"H:i" }}</strong><small> · час Ізраїлю</small></time></dd></div>{% endif %}
-            {% if campaign.event_venue or campaign.event_address %}<div><dt>ДЕ</dt><dd><strong>{{ campaign.event_venue }}</strong>{% if campaign.event_address %}<span>{{ campaign.event_address }}</span>{% endif %}</dd></div>{% endif %}
+            {% if campaign.event_starts_at %}<div>{% if public_copy.date_label %}<dt>{{ public_copy.date_label }}</dt>{% endif %}<dd><time datetime="{{ campaign.event_starts_at|date:'c' }}">{{ campaign.event_starts_at|date:"l, j E Y" }}<br><strong>{{ campaign.event_starts_at|date:"H:i" }}</strong>{% if public_copy.timezone_label %}<small> · {{ public_copy.timezone_label }}</small>{% endif %}</time></dd></div>{% endif %}
+            {% if campaign.event_venue or campaign.event_address %}<div>{% if public_copy.venue_label %}<dt>{{ public_copy.venue_label }}</dt>{% endif %}<dd><strong>{{ campaign.event_venue }}</strong>{% if campaign.event_address %}<span>{{ campaign.event_address }}</span>{% endif %}</dd></div>{% endif %}
           </dl>{% endif %}
           {% if campaign.event_summary %}<div class="event-summary">{{ campaign.event_summary|linebreaks }}</div>{% endif %}
-          {% if campaign.event_description %}<details class="event-more"><summary>Програма, костюми та корисні деталі <span aria-hidden="true">+</span></summary><div class="event-details-copy">{% for paragraph in campaign.event_description|event_paragraphs %}{% if paragraph.title %}<h3>{{ paragraph.title }}</h3>{% endif %}<p>{{ paragraph.body|linebreaksbr }}</p>{% endfor %}</div></details>{% endif %}
-          {% if campaign.event_info_url %}<a href="{{ campaign.event_info_url }}" target="_blank" rel="noopener">Докладніше про подію <span aria-hidden="true">→</span></a>{% endif %}
+          {% if campaign.event_description %}<details class="event-more"><summary>{{ public_copy.details_label }} <span aria-hidden="true">+</span></summary><div class="event-details-copy">{% for paragraph in campaign.event_description|event_paragraphs %}{% if paragraph.title %}<h3>{{ paragraph.title }}</h3>{% endif %}<p>{{ paragraph.body|linebreaksbr }}</p>{% endfor %}</div></details>{% endif %}
+          {% if campaign.event_info_url %}<a href="{{ campaign.event_info_url }}" target="_blank" rel="noopener">{{ public_copy.event_link_label }} <span aria-hidden="true">→</span></a>{% endif %}
         </section>
         {% endif %}
         {% endif %}
-        <section class="registration-card" id="registration" aria-label="Форма реєстрації">
+        <section class="registration-card" id="registration" aria-label="{{ public_copy.form_title }}">
           {% if success %}
             <div class="confirmation-icon" aria-hidden="true">✓</div>
-            <p class="card-eyebrow">ЗАЯВКУ ЗБЕРЕЖЕНО</p>
-            <h2>Дякуємо, що Ви з нами!</h2>
+            {% if public_copy.success_eyebrow %}<p class="card-eyebrow">{{ public_copy.success_eyebrow }}</p>{% endif %}
+            <h2>{{ public_copy.success_heading }}</h2>
             <div class="confirmation-copy" role="status">{{ campaign.success_text|linebreaks }}</div>
-            <p class="quiet-note">Це підтвердження отримання заявки. Воно не є квитком.</p>
+            {% if public_copy.success_note %}<p class="quiet-note">{{ public_copy.success_note|linebreaksbr }}</p>{% endif %}
           {% elif not campaign.is_open %}
-            <p class="card-eyebrow">ПРИЙОМ ЗАЯВОК ЗАКРИТО</p>
-            <h2>До наступної зустрічі!</h2>
+            {% if public_copy.closed_eyebrow %}<p class="card-eyebrow">{{ public_copy.closed_eyebrow }}</p>{% endif %}
+            <h2>{{ public_copy.closed_heading }}</h2>
             <div class="confirmation-copy">{{ campaign.closed_text|linebreaks }}</div>
           {% else %}
-            <div class="card-heading"><div><p class="card-eyebrow">ЛИШЕ ЧОТИРИ ПОЛЯ</p><h2>Залиште свої контакти</h2></div><span class="card-spark" aria-hidden="true">✦</span></div>
-            <p class="card-hint">Щоб організатори могли опрацювати Вашу заявку.</p>
+            <div class="card-heading"><div>{% if public_copy.form_eyebrow %}<p class="card-eyebrow">{{ public_copy.form_eyebrow }}</p>{% endif %}<h2>{{ public_copy.form_title }}</h2></div><span class="card-spark" aria-hidden="true">✦</span></div>
+            {% if public_copy.form_hint %}<p class="card-hint">{{ public_copy.form_hint|linebreaksbr }}</p>{% endif %}
             <form method="post">
               {% csrf_token %}
-              {% if form.errors %}<div class="form-error-summary" role="alert"><strong>Перевірте, будь ласка, дані.</strong>{% if form.non_field_errors %}{{ form.non_field_errors }}{% else %}<p>Підказки є під відповідними полями.</p>{% endif %}</div>{% endif %}
+              {% if form.errors %}<div class="form-error-summary" role="alert"><strong>{{ public_copy.error_title }}</strong>{% if form.non_field_errors %}{{ form.non_field_errors }}{% else %}{% if public_copy.error_hint %}<p>{{ public_copy.error_hint }}</p>{% endif %}{% endif %}</div>{% endif %}
               <div class="form-fields">
-                {% for field in form %}<div class="field {% if field.errors %}field-invalid{% endif %}"><label for="{{ field.id_for_label }}">{{ field.label }}</label>{{ field }}{% if field.name == 'phone' %}<p class="field-hint">Ізраїльський номер або міжнародний із кодом країни.</p>{% endif %}{{ field.errors }}</div>{% endfor %}
+                {% for field in form %}<div class="field {% if field.errors %}field-invalid{% endif %}"><label for="{{ field.id_for_label }}">{{ field.label }}</label>{{ field }}{% if field.name == 'phone' and public_copy.phone_hint %}<p class="field-hint">{{ public_copy.phone_hint|linebreaksbr }}</p>{% endif %}{{ field.errors }}</div>{% endfor %}
               </div>
-              <button class="submit-button" type="submit">Надіслати заявку <svg aria-hidden="true" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6"><path d="M5 12h14M13 6l6 6-6 6"/></svg></button>
+              <button class="submit-button" type="submit">{{ public_copy.submit_label }} <svg aria-hidden="true" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6"><path d="M5 12h14M13 6l6 6-6 6"/></svg></button>
               <p class="privacy">{{ campaign.privacy_text }}</p>
             </form>
           {% endif %}
         </section>
-        <div class="registration-note"><span aria-hidden="true">i</span><p>Реєстрація не гарантує отримання квитка. Ця сторінка лише збирає заявки; квитки організатори надсилають окремо після погодження.</p></div>
+        {% if public_copy.bottom_note %}<div class="registration-note"><span aria-hidden="true">i</span><p>{{ public_copy.bottom_note|linebreaksbr }}</p></div>{% endif %}
       </section>
     </main>
-    <footer class="site-footer"><strong>DISCO UKRAÏNA</strong><span>Об’єднані музикою. Натхненні Україною.</span><span class="footer-spark" aria-hidden="true">✦</span></footer>
+    <footer class="site-footer">{% if public_copy.footer_brand %}<strong>{{ public_copy.footer_brand }}</strong>{% endif %}{% if public_copy.footer_tagline %}<span>{{ public_copy.footer_tagline }}</span>{% endif %}<span class="footer-spark" aria-hidden="true">✦</span></footer>
   </div>
 </body>
 </html>

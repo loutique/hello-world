@@ -8,6 +8,7 @@ from .models import RegistrationCampaign
 
 def link_preview(request, campaign):
     """Expose only public campaign content, never submitted contacts or query strings."""
+    copy = campaign.public_copy
     if not campaign.is_open:
         description = campaign.closed_text
     else:
@@ -17,7 +18,8 @@ def link_preview(request, campaign):
         ]))
     description = Truncator(" ".join(strip_tags(description).split())).chars(220)
     preview = {
-        "title": f"{campaign.public_title} · DISCO UKRAÏNA",
+        "title": " · ".join(filter(None, [campaign.public_title, copy["brand_name"]])),
+        "site_name": copy["brand_name"] or copy["footer_brand"],
         "description": description,
         "url": request.build_absolute_uri(reverse("register", args=[campaign.slug])),
     }
@@ -35,6 +37,6 @@ def link_preview(request, campaign):
             "image_type": "image/jpeg",
             "image_width": 569,
             "image_height": 800,
-            "image_alt": "Афіша DISCO UKRAÏNA — Велесова ніч, український Гелловін у Тель-Авіві",
+            "image_alt": copy["poster_alt"],
         })
-    return {"link_preview": preview}
+    return {"link_preview": preview, "public_copy": copy}

@@ -14,7 +14,7 @@ from .link_preview import link_preview
 @require_http_methods(["GET", "HEAD", "POST"])
 def register(request, slug):
     campaign = get_object_or_404(RegistrationCampaign.objects.defer("share_image_data"), slug=slug)
-    form = RegistrationForm(request.POST or None)
+    form = RegistrationForm(request.POST or None, campaign=campaign)
     success = request.GET.get("submitted") == "1"
     if request.method == "POST":
         success = False
@@ -30,7 +30,7 @@ def register(request, slug):
             window.save(update_fields=["attempts"])
         SubmissionWindow.objects.filter(created_at__lt=timezone.now()-timedelta(hours=1)).delete()
         if window.attempts > settings.REGISTRATION_RATE_LIMIT:
-            form.add_error(None, "Забагато спроб. Спробуйте ще раз за 10 хвилин.")
+            form.add_error(None, campaign.public_copy["rate_limit_error"])
             return render(request, "registrations/register.html", {"campaign": campaign, "form": form, **link_preview(request, campaign)}, status=429)
         if form.is_valid():
             try:
@@ -43,7 +43,7 @@ def register(request, slug):
                     registration.phone_normalized = form.phone_normalized
                     registration.save()
             except IntegrityError:
-                form.add_error(None, "Заявку з таким email або телефоном для цієї сторінки вже отримано.")
+                form.add_error(None, campaign.public_copy["duplicate_error"])
             else:
                 return redirect(request.path + "?submitted=1")
     return render(request, "registrations/register.html", {"campaign": campaign, "form": form, "success": success, **link_preview(request, campaign)})

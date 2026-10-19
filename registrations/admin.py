@@ -13,6 +13,7 @@ from django.utils.html import format_html
 
 from .models import RegistrationCampaign, Registration
 from .forms import CampaignAdminForm
+from .public_copy import COPY_GROUPS
 
 
 STATUS_HELP = {
@@ -64,6 +65,7 @@ class CampaignAdmin(admin.ModelAdmin):
         ("3. О мероприятии", {"fields": ["event_title", "event_starts_at", "event_venue", "event_address", "event_summary", "event_description", "event_info_url"], "description": "Этот блок объяснит участникам, куда они регистрируются. Он расположен перед формой отдельно от обращения к волонтёрам."}),
         ("4. Открыть или закрыть регистрацию", {"fields": ["is_active", "closes_at", "closed_text"], "description": "Закрытие убирает форму, но сохраняет все собранные заявки. Ограничений количества регистраций нет."}),
         ("5. Картинка при отправке ссылки в WhatsApp", {"fields": ["share_image_preview", "share_image", "share_image_alt", "remove_share_image"], "description": "Это картинка для превью ссылки в мессенджерах. Она не заменяет афишу внутри страницы и не отправляется людям автоматически."}),
+        *[(title, {"fields": ["copy_" + key for key, *_ in fields], "description": description, "classes": ["collapse"]}) for title, description, fields in COPY_GROUPS],
         ("Служебная информация", {"fields": ["public_page", "created_at", "updated_at"], "classes": ["collapse"]}),
     ]
 
@@ -80,7 +82,7 @@ class CampaignAdmin(admin.ModelAdmin):
     def get_fieldsets(self, request, obj=None):
         fieldsets = super().get_fieldsets(request, obj)
         if not self.has_change_permission(request, obj) and not (obj is None and self.has_add_permission(request)):
-            return [(name, {**options, "fields": [field for field in options["fields"] if field not in {"share_image", "remove_share_image"}]}) for name, options in fieldsets]
+            return [(name, {**options, "fields": [field for field in options["fields"] if field not in {"share_image", "remove_share_image"} and not field.startswith("copy_")]}) for name, options in fieldsets]
         return fieldsets
 
     def get_list_display(self, request):
@@ -135,6 +137,8 @@ class CampaignAdmin(admin.ModelAdmin):
 
 @admin.register(Registration)
 class RegistrationAdmin(admin.ModelAdmin):
+    delete_confirmation_template = "admin/disco/delete_registration.html"
+    delete_selected_confirmation_template = "admin/disco/delete_registrations.html"
     change_list_template = "admin/disco/registration_list.html"
     change_form_template = "admin/disco/registration_form.html"
     list_display = ["id", "first_name", "last_name", "phone", "email", "campaign", "created_at", "status_label", "admin_notes"]
@@ -157,7 +161,8 @@ class RegistrationAdmin(admin.ModelAdmin):
         return super().get_queryset(request).defer("campaign__share_image_data")
 
     def has_add_permission(self, request): return False
-    def has_delete_permission(self, request, obj=None): return False
+    def has_delete_permission(self, request, obj=None):
+        return super().has_delete_permission(request, obj)
 
     @admin.display(description="Результат проверки", ordering="status")
     def status_label(self, obj):

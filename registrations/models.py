@@ -8,6 +8,7 @@ class RegistrationCampaign(models.Model):
         VELES = "veles2026", "Велесова ніч 2026 — с афишей мероприятия"
 
     visual_style = models.CharField("Оформление страницы", max_length=20, choices=VisualStyle.choices, default=VisualStyle.CLASSIC, help_text="Выберите оформление с афишей для ближайшей вечеринки или универсальное для других событий. Тексты ниже можно менять в обоих вариантах.")
+    page_texts = models.JSONField(default=dict, blank=True, editable=False)
     share_image_data = models.BinaryField(null=True, blank=True, editable=False)
     share_image_hash = models.CharField(max_length=64, blank=True, editable=False)
     share_image_size = models.PositiveIntegerField(default=0, editable=False)
@@ -39,6 +40,11 @@ class RegistrationCampaign(models.Model):
     class Meta:
         verbose_name = "страница регистрации"
         verbose_name_plural = "Страницы регистрации"
+
+    @property
+    def public_copy(self):
+        from .public_copy import resolved_public_copy
+        return resolved_public_copy(self.page_texts)
 
     @property
     def is_open(self):

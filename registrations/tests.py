@@ -71,7 +71,8 @@ class WorkflowTests(TestCase):
         self.assertEqual(response.status_code, 302)
         self.assertEqual(self.client.get(self.list_url).status_code, 200)
     def campaign_data(self):
-        return {"event_title": "Про подію", "visual_style": "classic", "internal_name": "Guests", "slug": "guests", "public_title": "Гості", "intro_text": "Welcome", "success_text": "Thanks", "privacy_text": "Private", "closed_text": "Closed", "is_active": "on", "_save": "Save"}
+        from .public_copy import DEFAULT_PUBLIC_COPY
+        return {**{"copy_" + key: value for key, value in DEFAULT_PUBLIC_COPY.items()},"event_title": "Про подію", "visual_style": "classic", "internal_name": "Guests", "slug": "guests", "public_title": "Гості", "intro_text": "Welcome", "success_text": "Thanks", "privacy_text": "Private", "closed_text": "Closed", "is_active": "on", "_save": "Save"}
     def test_campaign_creation(self):
         self.login()
         response = self.client.post(reverse("admin:registrations_registrationcampaign_add"), self.campaign_data())
@@ -473,12 +474,97 @@ class WorkflowTests(TestCase):
         self.assertNotContains(response, 'type="file"')
         self.assertEqual(self.client.post(url, self.campaign_data() | {"share_image": self.image_upload()}).status_code, 403)
 
+    def test_all_public_copy_can_be_changed_from_admin(self):
+        self.login()
+        data = self.campaign_data() | {"slug": self.campaign.slug,
+            "copy_brand_name": "НЕЗАЛЕЖНА", "copy_header_tagline": "НОВА ПОДІЯ", "copy_show_flag": "",
+            "copy_footer_brand": "НАША КОМАНДА", "copy_footer_tagline": "До зустрічі!",
+            "copy_form_title": "Залиште дані", "copy_first_name_label": "Ваше ім’я",
+            "copy_submit_label": "Зареєструватися", "copy_phone_hint": "Наш новий текст"}
+        response = self.client.post(reverse("admin:registrations_registrationcampaign_change", args=[self.campaign.pk]), data)
+        self.assertEqual(response.status_code, 302)
+        response = self.client.get(self.url)
+        for text in ["НЕЗАЛЕЖНА", "НОВА ПОДІЯ", "НАША КОМАНДА", "До зустрічі!", "Залиште дані", "Ваше ім’я", "Зареєструватися", "Наш новий текст"]:
+            self.assertContains(response, text)
+        self.assertNotContains(response, 'class="flag"')
+        self.assertNotContains(response, "МУЗИКА. СПІЛЬНОТА. СВОЇ.")
+        self.assertNotContains(response, "Об’єднані музикою. Натхненні Україною.")
+        self.assertNotContains(response, "Реєстрація не гарантує отримання квитка")
+        meta = self.preview_metadata(response)
+        self.assertEqual(meta["og:site_name"], "НЕЗАЛЕЖНА")
+        self.assertTrue(meta["og:title"].endswith("НЕЗАЛЕЖНА"))
+
+    def test_public_copy_can_hide_optional_text_and_escapes_html(self):
+        self.campaign.page_texts = {"header_tagline": "", "footer_tagline": "", "eyebrow": "", "brand_name": '<script>alert("test")</script>'}
+        self.campaign.save()
+        response = self.client.get(self.url)
+        self.assertNotContains(response, 'class="header-caption"')
+        self.assertNotContains(response, 'class="eyebrow"')
+        self.assertNotContains(response, "<script>")
+        self.assertContains(response, "&lt;script&gt;")
+        self.assertNotContains(response, 'class="registration-note"')
+        self.assertContains(self.client.get(reverse("register", args=[self.other.slug])), "МУЗИКА. СПІЛЬНОТА. СВОЇ.")
+
+    def test_success_closed_and_validation_copy_are_editable(self):
+        self.campaign.page_texts = {"success_heading": "Отримали заявку!", "success_note": "", "closed_heading": "До нових подій", "phone_error": "Перевірте номер, будь ласка.", "duplicate_error": "Ви вже у списку."}
+        self.campaign.save()
+        response = self.submit(phone="bad")
+        self.assertContains(response, "Перевірте номер, будь ласка.")
+        self.submit()
+        response = self.submit()
+        self.assertContains(response, "Ви вже у списку.")
+        response = self.client.get(self.url, {"submitted": "1"})
+        self.assertContains(response, "Отримали заявку!")
+        self.assertNotContains(response, 'class="quiet-note"')
+        self.campaign.is_active = False
+        self.campaign.save()
+        self.assertContains(self.client.get(self.url), "До нових подій")
+
+    def test_single_registration_delete_requires_confirmation_and_allows_new_registration(self):
+        self.submit()
+        self.login()
+        record = Registration.objects.get()
+        url = reverse("admin:registrations_registration_delete", args=[record.pk])
+        response = self.client.get(url)
+        self.assertContains(response, "Удаление заявки навсегда")
+        self.assertTrue(Registration.objects.filter(pk=record.pk).exists())
+        self.assertEqual(self.client.post(url, {"post": "yes"}).status_code, 302)
+        self.assertFalse(Registration.objects.filter(pk=record.pk).exists())
+        self.assertTrue(RegistrationCampaign.objects.filter(pk=self.campaign.pk).exists())
+        self.assertEqual(self.submit().status_code, 302)
+
+    def test_bulk_delete_is_confirmed_and_only_removes_selected_records(self):
+        self.submit()
+        self.submit(self.other)
+        self.login()
+        record = Registration.objects.get(campaign=self.campaign)
+        data = {"action": "delete_selected", "_selected_action": str(record.pk)}
+        response = self.client.post(self.list_url, data)
+        self.assertContains(response, "Проверьте выбранные заявки перед удалением")
+        self.assertEqual(Registration.objects.count(), 2)
+        self.client.post(self.list_url, data | {"post": "yes"})
+        self.assertEqual(Registration.objects.count(), 1)
+        self.assertEqual(Registration.objects.get().campaign, self.other)
+        self.assertEqual(RegistrationCampaign.objects.count(), 2)
+
+    def test_view_only_staff_cannot_delete_registrations(self):
+        from django.contrib.auth.models import Permission
+        self.submit()
+        record = Registration.objects.get()
+        viewer = get_user_model().objects.create_user("delete-viewer", is_staff=True)
+        viewer.user_permissions.add(Permission.objects.get(codename="view_registration", content_type__app_label="registrations"))
+        self.client.force_login(viewer)
+        url = reverse("admin:registrations_registration_delete", args=[record.pk])
+        self.assertEqual(self.client.post(url, {"post": "yes"}).status_code, 403)
+        self.client.post(self.list_url, {"action": "delete_selected", "_selected_action": record.pk, "post": "yes"})
+        self.assertTrue(Registration.objects.filter(pk=record.pk).exists())
+
 
 class CampaignUpgradeTests(TransactionTestCase):
     """An existing event can upgrade without losing registrations or organizer edits."""
 
     migrate_from = ("registrations", "0003_registrationcampaign_seed_key")
-    migrate_to = ("registrations", "0010_registrationcampaign_share_image_alt_and_more")
+    migrate_to = ("registrations", "0011_registrationcampaign_page_texts")
 
     def tearDown(self):
         from django.db import connection

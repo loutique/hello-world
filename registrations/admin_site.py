@@ -1,7 +1,7 @@
 from django.contrib.admin import AdminSite
 from django.db.models import Count, Q
 from django.template.response import TemplateResponse
-from django.urls import path
+from django.urls import path, include
 
 
 class DiscoAdminSite(AdminSite):
@@ -15,6 +15,7 @@ class DiscoAdminSite(AdminSite):
     def each_context(self, request):
         context = super().each_context(request)
         context.update({
+            "can_operate_voting": request.user.has_perm("registrations.operate_costume_voting"),
             "can_view_registrations": request.user.has_perm("registrations.view_registration") or request.user.has_perm("registrations.change_registration"),
             "can_view_campaigns": request.user.has_perm("registrations.view_registrationcampaign") or request.user.has_perm("registrations.change_registrationcampaign"),
             "can_add_campaigns": request.user.has_perm("registrations.add_registrationcampaign"),
@@ -35,7 +36,8 @@ class DiscoAdminSite(AdminSite):
         return TemplateResponse(request, self.index_template, context)
 
     def get_urls(self):
-        return [path("help/", self.admin_view(self.help_view), name="disco_help")] + super().get_urls()
+        from .voting_views import urlpatterns as voting_urls
+        return [path("costume-voting/", include(voting_urls)), path("help/", self.admin_view(self.help_view), name="disco_help")] + super().get_urls()
 
     def help_view(self, request):
         return TemplateResponse(request, "admin/disco/help.html", {

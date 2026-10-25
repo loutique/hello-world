@@ -93,3 +93,42 @@ class SubmissionWindow(models.Model):
     key = models.CharField(max_length=64, unique=True)
     attempts = models.PositiveIntegerField(default=0)
     created_at = models.DateTimeField("Дата создания", auto_now_add=True)
+
+
+class CostumeVotingSession(models.Model):
+    """Versioned competition aggregate; drafts and calculations are server persisted."""
+    name = models.CharField(max_length=200)
+    state = models.JSONField(default=dict)
+    phase = models.PositiveSmallIntegerField(default=1)
+    revision = models.PositiveIntegerField(default=0)
+    locked = models.BooleanField(default=False)
+    completed = models.BooleanField(default=False)
+    result = models.JSONField(default=dict)
+    created_at = models.DateTimeField(auto_now_add=True)
+    updated_at = models.DateTimeField(auto_now=True)
+
+    class Meta:
+        permissions = [("operate_costume_voting", "Can operate costume competitions")]
+
+
+class CostumeVotingPhoto(models.Model):
+    session = models.ForeignKey(CostumeVotingSession, on_delete=models.CASCADE)
+    contestant_id = models.UUIDField()
+    data = models.BinaryField()
+    updated_at = models.DateTimeField(auto_now=True)
+
+    class Meta:
+        constraints = [models.UniqueConstraint(fields=["session", "contestant_id"], name="unique_costume_photo")]
+
+
+class CostumeVotingAudit(models.Model):
+    session = models.ForeignKey(CostumeVotingSession, on_delete=models.CASCADE, related_name="history")
+    revision = models.PositiveIntegerField()
+    actor = models.ForeignKey("auth.User", null=True, on_delete=models.SET_NULL)
+    action = models.CharField(max_length=40)
+    state = models.JSONField()
+    result = models.JSONField(default=dict)
+    created_at = models.DateTimeField(auto_now_add=True)
+
+    class Meta:
+        constraints = [models.UniqueConstraint(fields=["session", "revision"], name="unique_costume_revision")]

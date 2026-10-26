@@ -2,3 +2,12 @@
 @media(max-width:700px){.vote-card{padding:16px}.vote-header{display:block}.vote-header #save-status{display:block;margin-top:12px}.vote-actions{align-items:flex-start}.vote-actions>span{justify-content:flex-end}.vote-shell h1{font-size:25px}.vote-person .vote-row{gap:8px}.vote-shell .vote-primary{padding:12px}.vote-steps{gap:5px}}
 @media print{#header,.disco-nav,.breadcrumbs,.vote-steps,.vote-actions,#save-status,#vote-form>input{display:none}.vote-card{border:0}.vote-stage-notes{color:#555}}
 .vote-shell [hidden]{display:none!important}
+/* Django's native 30px select height must not clip the larger workspace type. */
+.vote-shell input:not([type="checkbox"]):not([type="radio"]):not([type="hidden"]),
+.vote-shell select,.vote-shell textarea{font:400 16px/1.4 system-ui,-apple-system,BlinkMacSystemFont,"Segoe UI",sans-serif;color:var(--body-fg);background-color:var(--control-bg,var(--body-bg))}
+.vote-shell input:not([type="checkbox"]):not([type="radio"]):not([type="hidden"]),.vote-shell select{height:auto;min-height:46px;padding:10px 12px}
+.vote-shell select{padding-right:36px;vertical-align:middle}
+.vote-shell select option{color:var(--body-fg);background-color:var(--control-bg,var(--body-bg));font-size:16px}
+.vote-shell .score-cell{min-width:84px;text-align:center;font-weight:700;font-variant-numeric:tabular-nums}
+.vote-shell select:disabled,.vote-shell input:disabled,.vote-shell textarea:disabled{opacity:1;-webkit-text-fill-color:var(--body-quiet-color);color:var(--body-quiet-color)}
+#user-tools>select,.disco-theme-control select{height:auto;min-height:40px;line-height:1.4}

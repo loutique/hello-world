@@ -10,8 +10,16 @@ def audience_start(result):
     return 2 + jury_top_count(result)
 
 
-def last_position(result):
+def results_position(result):
     return audience_start(result) + 3 * len(result["reveal_order"])
+
+
+def podium_places(result):
+    return sorted({r["rank"] for r in result["rows"] if r["eligible"] and r["rank"] in (1, 2, 3)}, reverse=True)
+
+
+def last_position(result):
+    return results_position(result) + len(podium_places(result)) + 1
 
 
 def public_frame(broadcast):
@@ -24,7 +32,7 @@ def public_frame(broadcast):
     position = min(broadcast.position, last_position(result))
     frame = {"title": broadcast.title, "theme": broadcast.theme, "revision": broadcast.revision,
         "position": position, "last": last_position(result), "count": len(order), "revealed": 0,
-        "scene": "welcome", "board": [], "current": None, "winners": [], "notices": [], "headline": "", "top_count": top_count}
+        "scene": "welcome", "board": [], "current": None, "winners": [], "notices": [], "headline": "", "top_count": top_count, "awardees": [], "award_place": None}
     if position == 0:
         return frame
     shown = set()
@@ -43,8 +51,11 @@ def public_frame(broadcast):
         frame["current"] = {"number": r["number"], "name": r["name"], "jury": r["jury_points"],
             "audience": None, "total": r["jury_points"], "sequence": top_index + 1}
         frame["headline"] = "Рішення журі"
-    elif position == last_position(result):
-        frame["scene"] = "final"
+    elif position >= results_position(result):
+        offset = position - results_position(result)
+        places = podium_places(result)
+        frame["scene"] = "final" if offset == 0 else "podium" if offset <= len(places) else "victory"
+        frame["award_place"] = places[offset - 1] if frame["scene"] == "podium" else 1 if frame["scene"] == "victory" else None
         shown = set(order)
         frame["notices"] = result["warnings"]
     else:
@@ -88,7 +99,15 @@ def public_frame(broadcast):
             frame["headline"] = "У трійці лідерів"
         else:
             frame["headline"] = "Бали додано"
-    if frame["scene"] == "final":
+    if frame["scene"] in {"final", "podium", "victory"}:
         frame["winners"] = [r for r in frame["board"] if r["rank"] == 1]
         frame["headline"] = "Переможець конкурсу" if len(frame["winners"]) == 1 else "Перше місце ділять"
+        if frame["award_place"] is not None:
+            frame["awardees"] = [r for r in frame["board"] if r["rank"] == frame["award_place"]]
+            if frame["scene"] == "podium":
+                frame["headline"] = {3: "Третє місце", 2: "Друге місце", 1: "Перше місце"}[frame["award_place"]]
+                if len(frame["awardees"]) > 1:
+                    frame["headline"] += " — ділять учасники"
+            else:
+                frame["headline"] = "Вітаємо переможця!" if len(frame["winners"]) == 1 else "Вітаємо переможців!"
     return frame

@@ -8,7 +8,7 @@ from django.urls import reverse
 from .models import CostumeVotingSession as Session, CostumeBroadcast as Broadcast, CostumeVotingPhoto as Photo
 from .test_voting import competition
 from .voting_engine import calculate
-from .broadcast_engine import public_frame, last_position, audience_start, jury_top_count
+from .broadcast_engine import public_frame, last_position, audience_start, jury_top_count, results_position, podium_places
 
 
 class BroadcastFrameTests(SimpleTestCase):
@@ -60,11 +60,29 @@ class BroadcastFrameTests(SimpleTestCase):
                 self.assertEqual(frame["current"]["audience"], contestant["audience_points"] if substep else None)
                 self.assertEqual(frame["current"]["total"], contestant["total"] if substep == 2 else None)
                 self.assertEqual(frame["revealed"], i + (substep == 2))
-        self.show.position = last_position(self.result)
+        self.show.position = results_position(self.result)
         final = public_frame(self.show)
         self.assertEqual(final["scene"], "final")
         self.assertEqual(sum(r["total"] for r in final["board"]), 1000)
         self.assertEqual([(r["number"], r["rank"]) for r in final["board"]], [(r["number"], r["rank"]) for r in self.result["rows"]])
+
+    def test_podium_follows_table_and_winner_celebration_is_separate(self):
+        table = results_position(self.result)
+        self.show.position = table
+        self.assertEqual(public_frame(self.show)["scene"], "final")
+        for offset, place in enumerate([3, 2, 1], 1):
+            self.show.position = table + offset
+            frame = public_frame(self.show)
+            self.assertEqual(frame["scene"], "podium")
+            self.assertEqual(frame["award_place"], place)
+            self.assertTrue(frame["awardees"])
+            self.assertTrue(all(r["rank"] == place for r in frame["awardees"]))
+            self.assertEqual(sum(r["total"] for r in frame["board"]), 1000)
+        self.show.position = last_position(self.result)
+        winner = public_frame(self.show)
+        self.assertEqual(winner["scene"], "victory")
+        self.assertEqual(winner["headline"], "Вітаємо переможця!")
+        self.assertEqual(winner["awardees"], winner["winners"])
 
     def test_final_excludes_disqualified_and_keeps_actual_final_numbers(self):
         state = competition()
@@ -82,7 +100,13 @@ class BroadcastFrameTests(SimpleTestCase):
             state["scores"][j["id"]] = {c["id"]: [5, 3, 1][(k + i) % 3] for k, c in enumerate(state["contestants"])}
         self.show.snapshot = calculate(state)
         self.show.position = last_position(self.show.snapshot)
-        self.assertEqual(len(public_frame(self.show)["winners"]), 3)
+        frame = public_frame(self.show)
+        self.assertEqual(len(frame["winners"]), 3)
+        self.assertEqual(frame["scene"], "victory")
+        self.assertEqual(podium_places(self.show.snapshot), [1])
+        self.assertEqual(frame["headline"], "Вітаємо переможців!")
+        self.show.position = results_position(self.show.snapshot) + 1
+        self.assertEqual(len(public_frame(self.show)["awardees"]), 3)
 
 
 @override_settings(SECURE_SSL_REDIRECT=False, STORAGES={"default": {"BACKEND": "django.core.files.storage.FileSystemStorage"}, "staticfiles": {"BACKEND": "django.contrib.staticfiles.storage.StaticFilesStorage"}})

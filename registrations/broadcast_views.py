@@ -26,7 +26,7 @@ def secure_response(response):
 
 def frame(show):
     payload = public_frame(show)
-    featured = ([payload["current"]] if payload["current"] else []) + payload["winners"]
+    featured = ([payload["current"]] if payload["current"] else []) + payload["winners"] + payload.get("awardees", [])
     ids = {r["number"]: r["id"] for r in show.snapshot["rows"] if r["eligible"]}
     photo_ids = {str(cid) for cid in Photo.objects.filter(session_id=show.session_id, contestant_id__in=[ids[r["number"]] for r in featured]).values_list("contestant_id", flat=True)}
     for person in featured:
@@ -117,7 +117,7 @@ def photo(request, token, number):
     if not current(show):
         return secure_response(HttpResponse(status=410))
     payload = public_frame(show)
-    visible = ([payload["current"]] if payload["current"] else []) + payload["winners"]
+    visible = ([payload["current"]] if payload["current"] else []) + payload["winners"] + payload.get("awardees", [])
     if number not in {r["number"] for r in visible}:
         return secure_response(HttpResponse(status=404))
     contestant = next(r for r in show.snapshot["rows"] if r["eligible"] and r["number"] == number)

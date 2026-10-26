@@ -14,6 +14,11 @@
   const values = r => `<div class="result-breakdown"><div><span>Журі</span><b>${r.jury}</b></div><div><span>Глядачі</span><b>${r.audience === null ? '—' : r.audience}</b></div><div class="total"><span>Разом</span><b>${r.total === null ? '—' : r.total}</b></div></div>`;
   const portrait = r => r.photo?`<figure class="contestant-portrait"><img src="${esc(r.photo)}" alt="${esc(r.name)}"></figure>`:'';
   const identity = r => `<div class="contestant-identity ${r.photo?'has-photo':''}"><div><p class="number">УЧАСНИК №${r.number}</p><h1 class="${r.name.length>70?'very-long-name':r.name.length>35?'long-name':''}">${esc(r.name)}</h1></div>${portrait(r)}</div>`;
+  function awardSlide(data) {
+    const people=data.awardees, shared=people.length>1;
+    const cards=people.slice(0,3).map(r=>`<article class="award-person">${portrait(r)}<p class="award-number">УЧАСНИК №${r.number}</p><h1 class="${r.name.length>70?'very-long-name':''}">${esc(r.name)}</h1><div class="award-score"><b>${r.total}</b><span>БАЛІВ</span></div>${values(r)}</article>`).join('');
+    return `<section class="award-scene ${data.scene==='victory'?'victory-scene':''} ${shared?'shared-award':''}" data-place="${data.award_place}"><div class="award-halo" aria-hidden="true"></div><header class="award-title"><span class="award-emblem" aria-hidden="true">${data.scene==='victory'?'✦':data.award_place}</span><p class="eyebrow">${data.scene==='victory'?'DISCO UKRAÏNA · КОНКУРС КОСТЮМІВ':'ФІНАЛЬНИЙ П’ЄДЕСТАЛ'}</p><h2>${esc(data.headline)}</h2></header><div class="award-people">${cards}</div>${people.length>3?`<p class="award-more">Спільне місце — ${people.length} учасників. Усі імена є в підсумковій таблиці.</p>`:''}<p class="award-congratulations">${data.scene==='victory'?'Ваша мить. Ваші оплески. Дякуємо, що створили цю ніч разом із нами!':'Вітаємо! Ці оплески — для вас.'}</p></section>`;
+  }
   function board(data) {
     const count=data.board.length, pages=Math.max(1,Math.ceil(count/24));page=Math.min(page,pages-1);
     const visible=data.board.slice(page*24,(page+1)*24), columns=visible.length>12?[visible.slice(0,Math.ceil(visible.length/2)),visible.slice(Math.ceil(visible.length/2))]:[visible];
@@ -25,8 +30,9 @@
     frame=data;blocked=false;message.hidden=true;
     document.body.dataset.theme=data.theme;
     document.body.dataset.scene=data.scene;
+    document.body.dataset.place=data.award_place||'';
     document.getElementById('event-name').textContent=data.title;
-    document.getElementById('progress-text').textContent=data.scene==='welcome'?'ОГОЛОШЕННЯ РЕЗУЛЬТАТІВ':['jury','jury_top'].includes(data.scene)?'ОГОЛОШЕННЯ ЖУРІ':`ГЛЯДАЧІ: ${data.revealed} / ${data.count}`;
+    document.getElementById('progress-text').textContent=data.scene==='welcome'?'ОГОЛОШЕННЯ РЕЗУЛЬТАТІВ':['jury','jury_top'].includes(data.scene)?'ОГОЛОШЕННЯ ЖУРІ':['podium','victory'].includes(data.scene)?'НАГОРОДЖЕННЯ':`ГЛЯДАЧІ: ${data.revealed} / ${data.count}`;
     document.getElementById('progress-fill').style.width=(data.revealed/data.count*100)+'%';
     document.getElementById('frame-counter').textContent=`${data.position+1} / ${data.last+1}`;
     next.disabled=data.position===data.last;previous.disabled=data.position===0;
@@ -38,6 +44,8 @@
     } else if(data.scene==='jury_top') {
       const r=data.current;
       html=`<div class="arena"><section class="spotlight"><p class="eyebrow">${data.top_count===5?'П’ЯТІРКА ЖУРІ':'РЕЗУЛЬТАТИ ЖУРІ'} · ${r.sequence} / ${data.top_count}</p>${identity(r)}<div class="reveal-value score-burst">${r.jury}</div><span class="reveal-label">балів від журі</span><p class="headline">Попереду — голоси глядачів</p></section>${board(data)}</div>`;
+    } else if(['podium','victory'].includes(data.scene)) {
+      html=awardSlide(data);
     } else if(data.scene==='final') {
       const shared=data.winners.length>1,winner=data.winners[0];
       html=`<div class="arena final-arena"><section class="spotlight"><div class="winner-mark" aria-hidden="true">✦</div><p class="eyebrow">${esc(data.headline)}</p>${shared?`<h1>${data.winners.slice(0,3).map(r=>esc(r.name)).join('<br>')}${data.winners.length>3?'<br><small>та ще '+(data.winners.length-3)+' учасників</small>':''}</h1><div class="shared-portraits">${data.winners.slice(0,3).map(portrait).join('')}</div>`:identity(winner)}${shared?data.winners.slice(0,3).map(r=>`<p class="final-notice">№${r.number} — ${r.jury} від журі + ${r.audience} від глядачів = ${r.total} балів</p>`).join(''):`<div class="reveal-value score-burst">${winner.total}</div>${values(winner)}`}<p class="final-notice">Вітаємо! Дякуємо всім учасникам.</p>${data.notices.map(text=>`<p class="final-notice">${esc(text)}</p>`).join('')}</section>${board(data)}</div>`;
@@ -57,9 +65,9 @@
       scene.querySelectorAll('.board-row').forEach(el=>{const before=oldRects.get(el.dataset.number),after=el.getBoundingClientRect();if(before&&Math.abs(before.top-after.top)>1)el.animate([{transform:`translateY(${before.top-after.top}px)`,opacity:.45},{transform:'translateY(0)',opacity:1}],{duration:800,easing:'cubic-bezier(.2,.8,.2,1)'});});
     }
     document.querySelector('.confetti')?.remove();
-    if(animate&&data.scene==='final'&&old?.scene!=='final') {
+    if(animate&&(data.scene==='podium'||data.scene==='victory')&&old?.position!==data.position) {
       const confetti=document.createElement('div');confetti.className='confetti';confetti.setAttribute('aria-hidden','true');
-      confetti.innerHTML=Array.from({length:55},(_,i)=>`<i style="--x:${(i*37)%100}%;--delay:${(i%9)*.14}s;--duration:${3+(i%5)*.4}s"></i>`).join('');document.body.append(confetti);setTimeout(()=>confetti.remove(),8000);
+      confetti.innerHTML=Array.from({length:data.scene==='victory'?95:55},(_,i)=>`<i style="--x:${(i*37)%100}%;--delay:${(i%9)*.14}s;--duration:${3+(i%5)*.4}s"></i>`).join('');document.body.append(confetti);setTimeout(()=>confetti.remove(),8000);
     }
   }
   async function request(action) {

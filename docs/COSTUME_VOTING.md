@@ -45,3 +45,17 @@ The private PDF-download endpoint produces a publishable Ukrainian document from
 ## Validation
 
 `registrations.test_voting` covers schema validation, exact conservation, randomized audience distributions, disqualifications, missing/duplicate jury awards, manual shortlists, reconciliation, ties, presenter order, access control, CSRF, stale revisions, atomic transitions, invalidation/completion, photo isolation and PDF export. Run it with the existing registration suite: `python manage.py test`.
+
+## Stage screen
+
+After verified results, use **Показ на екрані** on steps 6 or 7. Create a revocable stage link and open it on the projection computer; no staff login is required there. Anyone holding this link can advance the show, so share it with the production team. The link grants no access to contacts, registration data or administration. It exposes only the currently announced result data, not the entire future reveal queue or scores.
+
+The default Veles palette uses a near-black background, ivory type, gold/firelight accents and blue jury scores. No remote fonts, copyrighted show assets, audio services or new dependencies are used. Fullscreen is available via its button or F; browser support and user interaction are required. Click the stage, press Space/Enter or the right arrow to advance. Left arrow goes back. Visible controls fade when idle; reduced-motion preferences are respected. Multiple screens poll for the same persisted position. A version check prevents stale simultaneous clicks from skipping frames; accidental rapid double-clicks are throttled.
+
+The show begins with a welcome. Lower jury results appear together, withholding the top five names and points. The top five jury contestants are then revealed individually from fifth to first (or all contestants individually if there are fewer than five). Only then does the audience sequence begin, permanently ordered from last to first by the original jury ranking. Each contestant has three frames: introduction, audience points, combined score with updated standings. Final standings follow. Jury ties remain shared ranks, so a five-person presentation group does not override tie rules.
+
+Participant photos, when supplied, appear in their individual jury and audience frames and for the winner. Missing photos use a complete text layout. Photo endpoints require the stage token and an eligible contestant currently being announced or shown as a final winner; no contacts or EXIF metadata are exposed. Previously uploaded images stay in the same existing PostgreSQL storage.
+
+`CostumeBroadcast` stores an immutable validated result snapshot, a high-entropy capability token, theme, position, revision and revocation flag. Migration `0013` adds this table only. Advancing and restarting never edit competition scores. Recalculation that changes the results stops old stage links; revoke or replace links from the private management page. Restarting requires confirmation and synchronizes all screens. Network failures preserve the last rendered frame and show a retry message; successfully stored positions survive reloads and browser restarts.
+
+The projector view is optimized for a 16:9 display and supports mobile. Up to 24 names fit in two balanced columns; larger competitions have table pagination, automatically bringing the featured contestant's page into view. The final rank uses exact scores while the screen always displays jury, audience and total announced points.

@@ -132,3 +132,21 @@ class CostumeVotingAudit(models.Model):
 
     class Meta:
         constraints = [models.UniqueConstraint(fields=["session", "revision"], name="unique_costume_revision")]
+
+
+def broadcast_token():
+    import secrets
+    return secrets.token_urlsafe(32)
+
+
+class CostumeBroadcast(models.Model):
+    """Revocable, result-only stage access; no participant contacts or admin access."""
+    session = models.ForeignKey(CostumeVotingSession, on_delete=models.CASCADE, related_name="broadcasts")
+    token = models.CharField(max_length=64, unique=True, default=broadcast_token, editable=False)
+    snapshot = models.JSONField()
+    title = models.CharField(max_length=200)
+    theme = models.CharField(max_length=12, default="ember", choices=[("electric", "Електричний"), ("ember", "Теплий")])
+    position = models.PositiveIntegerField(default=0)
+    revision = models.PositiveIntegerField(default=0)
+    active = models.BooleanField(default=True)
+    created_at = models.DateTimeField(auto_now_add=True)

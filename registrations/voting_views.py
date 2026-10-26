@@ -218,7 +218,12 @@ def history(request, pk):
     return page(request, "history.html", title="Історія збережень", session=session, history=session.history.select_related("actor").order_by("-revision")[:200])
 
 
-urlpatterns = [path("", index, name="voting_index"), path("new/", create, name="voting_create"),
+def broadcast_manage(request, pk):
+    from .broadcast_views import manage
+    return manage(request, pk)
+
+
+urlpatterns = [path("<int:pk>/broadcast/", broadcast_manage, name="voting_broadcast"), path("", index, name="voting_index"), path("new/", create, name="voting_create"),
     path("<int:pk>/", detail, name="voting_detail"), path("<int:pk>/save/", save, name="voting_save"),
     path("<int:pk>/photo/", photo, name="voting_photo"), path("<int:pk>/report.pdf", pdf, name="voting_pdf"),
     path("<int:pk>/history/", history, name="voting_history")]

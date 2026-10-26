@@ -587,7 +587,7 @@ class CampaignUpgradeTests(TransactionTestCase):
     """An existing event can upgrade without losing registrations or organizer edits."""
 
     migrate_from = ("registrations", "0003_registrationcampaign_seed_key")
-    migrate_to = ("registrations", "0012_costumevotingsession_costumevotingphoto_and_more")
+    migrate_to = ("registrations", "0013_costumebroadcast")
 
     def tearDown(self):
         from django.db import connection

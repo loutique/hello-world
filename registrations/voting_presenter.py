@@ -77,4 +77,6 @@ def script(result):
     if len(winners) > 1:
         ending = "Перше місце ділять " + ", ".join(f"№{r['number']} — {r['name']}" for r in winners) + ". Вітаємо!"
     return {"intro": INTRO, "blocks": blocks, "ending": ending,
-        "jury_results": [rows[cid] for cid in jury_order], "warnings": result["warnings"]}
+        "jury_results": [rows[cid] for cid in jury_order],
+        "jury_low_results": [rows[cid] for cid in jury_order[5:]],
+        "jury_top_results": [rows[cid] for cid in reversed(jury_order[:5])], "warnings": result["warnings"]}

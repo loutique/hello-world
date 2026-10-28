@@ -1,9 +1,10 @@
 (() => {
-  const button = document.getElementById('copy-show-link');
-  if (!button) return;
-  button.addEventListener('click', async () => {
-    const input = document.getElementById('show-link');
-    try { await navigator.clipboard.writeText(input.value); document.getElementById('copy-status').textContent = 'Посилання скопійовано ✓'; }
-    catch (_) { input.focus(); input.select(); document.getElementById('copy-status').textContent = 'Адресу виділено. Натисніть Ctrl+C або оберіть «Копіювати».'; }
+  document.querySelectorAll('[data-copy-target]').forEach(button => {
+    button.addEventListener('click', async () => {
+      const input=document.getElementById(button.dataset.copyTarget);
+      const status=document.getElementById('copy-status');
+      try { await navigator.clipboard.writeText(input.value);status.textContent='Посилання скопійовано ✓'; }
+      catch (_) { input.focus();input.select();status.textContent='Адресу виділено. Натисніть Ctrl+C або оберіть «Копіювати».'; }
+    });
   });
 })();

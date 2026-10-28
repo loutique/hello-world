@@ -92,7 +92,8 @@ def manage(request, pk):
     return page(request, "broadcast.html", title="Показ на екрані", session=session, show=show,
         valid=ready, error=error, branding_form=branding_form,
         branding=Branding.objects.filter(session=session).values("logo_hash", "mascot_hash").first(),
-        show_url=request.build_absolute_uri(reverse("broadcast_screen", args=[show.token])) if ready else "")
+        show_url=request.build_absolute_uri(reverse("broadcast_screen", args=[show.token])) if ready else "",
+        remote_url=request.build_absolute_uri(reverse("broadcast_remote", args=[show.token])) if ready else "")
 
 
 @ensure_csrf_cookie
@@ -102,6 +103,31 @@ def screen(request, token):
     return secure_response(TemplateResponse(request, "registrations/broadcast.html", {
         "config": {"url": reverse("broadcast_state", args=[token])},
     }))
+
+
+@ensure_csrf_cookie
+@require_http_methods(["GET", "HEAD"])
+def remote(request, token):
+    get_object_or_404(Broadcast.objects.only("pk"), token=token)
+    return secure_response(TemplateResponse(request, "registrations/broadcast_remote.html", {
+        "config": {"url": reverse("broadcast_state", args=[token])},
+    }))
+
+
+@private
+@require_http_methods(["GET"])
+def remote_qr(request, pk):
+    show = get_object_or_404(Broadcast.objects.select_related("session").filter(active=True), session_id=pk)
+    if not current(show):
+        return secure_response(HttpResponse("Підготуйте актуальне посилання.", status=410))
+    from reportlab.graphics import renderSVG
+    from reportlab.graphics.barcode.qr import QrCodeWidget
+    from reportlab.graphics.shapes import Drawing, Rect
+    from reportlab.lib import colors
+    drawing = Drawing(240, 240)
+    drawing.add(Rect(0, 0, 240, 240, fillColor=colors.white, strokeColor=colors.white))
+    drawing.add(QrCodeWidget(request.build_absolute_uri(reverse("broadcast_remote", args=[show.token])), barWidth=240, barHeight=240, barBorder=4))
+    return secure_response(HttpResponse(renderSVG.drawToString(drawing), content_type="image/svg+xml"))
 
 
 @require_http_methods(["GET", "POST"])
@@ -158,5 +184,5 @@ def artwork(request, token, kind):
     return secure_response(HttpResponse(bytes(image) if request.method == "GET" else b"", content_type="image/png"))
 
 
-urlpatterns = [path("show/<str:token>/artwork/<str:kind>/", artwork, name="broadcast_artwork"), path("show/<str:token>/photo/<int:number>/", photo, name="broadcast_photo"), path("show/<str:token>/", screen, name="broadcast_screen"),
+urlpatterns = [path("show/<str:token>/remote/", remote, name="broadcast_remote"), path("show/<str:token>/artwork/<str:kind>/", artwork, name="broadcast_artwork"), path("show/<str:token>/photo/<int:number>/", photo, name="broadcast_photo"), path("show/<str:token>/", screen, name="broadcast_screen"),
                path("show/<str:token>/state/", state, name="broadcast_state")]

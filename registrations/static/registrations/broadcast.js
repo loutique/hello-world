@@ -134,5 +134,5 @@
   document.addEventListener('mousemove',controls,{passive:true});document.addEventListener('touchstart',controls,{passive:true});document.addEventListener('focusin',controls);
   document.addEventListener('fullscreenchange',()=>{document.getElementById('fullscreen').textContent=document.fullscreenElement?'Згорнути екран':'На весь екран';controls();});
   document.addEventListener('visibilitychange',()=>{if(!document.hidden&&!busy){controls();request();}});
-  controls();request();setInterval(()=>{if(!busy&&!document.hidden)request();},2200);
+  controls();request();setInterval(()=>{if(!busy&&!document.hidden)request();},1000);
 })();

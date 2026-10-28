@@ -223,7 +223,12 @@ def broadcast_manage(request, pk):
     return manage(request, pk)
 
 
-urlpatterns = [path("<int:pk>/broadcast/", broadcast_manage, name="voting_broadcast"), path("", index, name="voting_index"), path("new/", create, name="voting_create"),
+def broadcast_remote_qr(request, pk):
+    from .broadcast_views import remote_qr
+    return remote_qr(request, pk)
+
+
+urlpatterns = [path("<int:pk>/broadcast/remote-qr.svg", broadcast_remote_qr, name="voting_remote_qr"), path("<int:pk>/broadcast/", broadcast_manage, name="voting_broadcast"), path("", index, name="voting_index"), path("new/", create, name="voting_create"),
     path("<int:pk>/", detail, name="voting_detail"), path("<int:pk>/save/", save, name="voting_save"),
     path("<int:pk>/photo/", photo, name="voting_photo"), path("<int:pk>/report.pdf", pdf, name="voting_pdf"),
     path("<int:pk>/history/", history, name="voting_history")]

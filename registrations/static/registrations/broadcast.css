@@ -26,3 +26,83 @@ body[data-theme=ember] .welcome:before{border-color:#ffc65c30;box-shadow:0 0 150
 .show-brand>.brand-fallback{font-size:inherit;letter-spacing:inherit;color:inherit;font-weight:inherit;margin:0}.show-brand>#stage-logo{display:block;max-height:6.4vh;max-width:20vw;width:auto;object-fit:contain}.footer-identity{display:flex;gap:14px;align-items:center;min-width:0;max-width:60%}.footer-identity #event-name{max-width:100%}#stage-mascot{display:block;flex-shrink:0;width:4.8vh;height:4.8vh;object-fit:contain}.welcome-content{min-width:0;max-width:100%}.welcome-logo{display:block;width:auto;max-width:40vw;max-height:23vh;object-fit:contain;margin:0 auto 2vh}.welcome.with-logo h1{font-size:clamp(28px,3.4vw,68px)}.welcome.with-mascot{display:grid;grid-template-columns:minmax(0,1fr) minmax(0,1fr);gap:4vw;padding-left:4vw;padding-right:4vw}.welcome.with-mascot h1{font-size:clamp(28px,4vw,80px)}.welcome.with-mascot .welcome-logo{max-width:30vw;max-height:20vh}.welcome.with-mascot .bank-intro{justify-content:center;gap:3vw;margin-top:2vh}.welcome-mascot{margin:0;min-width:0}.welcome-mascot img{display:block;width:100%;max-height:52vh;object-fit:contain;filter:drop-shadow(0 20px 45px #0005)}.award-brand-mascot{position:absolute;right:1vw;bottom:1vh;width:13vw;height:20vh;max-width:250px;object-fit:contain;pointer-events:none;z-index:-1}
 @media(max-width:1400px){.award-brand-mascot{width:9vw;height:14vh;opacity:.85}}
 @media(max-width:900px){.show-brand>#stage-logo{max-width:35vw;max-height:65px}#stage-mascot{width:35px;height:35px}.footer-identity{gap:8px;max-width:55%}.welcome.with-mascot{display:flex;flex-direction:column;padding:30px 0;gap:25px}.welcome.with-logo h1,.welcome.with-mascot h1{font-size:40px}.welcome-logo,.welcome.with-mascot .welcome-logo{max-width:70vw;max-height:180px}.welcome-mascot{width:65%;max-width:300px}.welcome-mascot img{max-height:260px}.award-brand-mascot{display:none}}
+/* Projection typography: read from the room, with recognizable branding in phone video. */
+@media(min-width:901px){
+  #stage{padding:2vh 3vw 1.5vh}
+  .show-header{display:grid;grid-template-columns:minmax(0,1fr) auto minmax(0,1fr);gap:3vw;height:18vh;min-height:0;flex-shrink:0;padding:0 0 1vh;align-items:center}
+  .show-brand{justify-self:start;max-width:100%;font-size:clamp(25px,2.2vw,46px)}
+  .show-brand>.brand-fallback>span{font-size:clamp(11px,.8vw,18px);letter-spacing:.12em}
+  .show-brand>#stage-logo{max-height:14.5vh;max-width:28vw;min-height:0;width:auto}
+  .show-center-brand{justify-self:center;display:flex;align-items:center;justify-content:center;width:19vh;height:17vh}
+  #stage-mascot{width:19vh;height:17vh;object-fit:contain;filter:drop-shadow(0 8px 20px #0005)}
+  .show-bank{justify-self:end;gap:3vw;text-align:center}
+  .show-bank span{font-size:clamp(17px,1.35vw,30px);font-weight:650;letter-spacing:.08em;color:var(--ink)}
+  .show-bank b{font-size:clamp(35px,3.5vw,72px);margin-top:.5vh}
+  .show-footer{min-height:4vh;flex-shrink:0;padding-top:1vh;font-size:clamp(12px,.85vw,19px)}
+  .show-footer .footer-identity{max-width:58%}
+  .arena,.jury-arena{grid-template-columns:minmax(0,.85fr) minmax(0,1.4fr);gap:3vw;padding:2vh 0}
+  .eyebrow{font-size:clamp(14px,1.25vw,27px);letter-spacing:.12em;margin-bottom:1.2vh}
+  .spotlight .number{font-size:clamp(19px,1.7vw,36px)}
+  .spotlight h1{font-size:clamp(32px,3.8vw,80px);margin-bottom:1.5vh}
+  .spotlight .reveal-value{font-size:clamp(85px,10vw,210px);margin:.8vh 0 1.5vh}
+  .reveal-label{font-size:clamp(16px,1.35vw,29px);letter-spacing:.08em;line-height:1.4}
+  .result-breakdown{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:.8vw;margin-top:1.5vh}
+  .result-breakdown>div{min-width:0;padding:1vh .9vw}
+  .result-breakdown span{font-size:clamp(15px,1.15vw,25px);font-weight:650;letter-spacing:0}
+  .result-breakdown b{font-size:clamp(29px,2.6vw,56px)}
+  .spotlight .headline{font-size:clamp(18px,1.5vw,32px);margin-bottom:1vh}
+  .standing-title{margin-bottom:1vh}
+  .standing-title h2{font-size:clamp(23px,1.75vw,38px)}
+  .standing-title>span{font-size:clamp(13px,.95vw,21px)}
+  .board-columns,.board-columns.two{grid-template-columns:minmax(0,1fr)}
+  .board-column{gap:.55vh}
+  .board-head,.board-row{font-size:clamp(20px,1.55vw,34px);grid-template-columns:1.3em minmax(0,1fr) 2.8em 4.2em 3.4em;gap:.4em;padding:.6vh .7vw;line-height:1.15}
+  .board-head{padding-top:.2vh;padding-bottom:.6vh}
+  .board-head>span{font-size:clamp(16px,1.2vw,27px);font-weight:700;line-height:1.25;color:var(--ink)}
+  .board-row{min-height:3.5vh}
+  .board-row .rank{font-size:.85em}
+  .board-name{gap:.45em}
+  .board-name small{font-size:.75em;min-width:2.1em}
+  .board-name strong{font-weight:650}
+  .board-pages{font-size:clamp(14px,.95vw,21px);gap:12px;margin-top:1vh}
+  .board-pages button{font-size:inherit;min-width:42px;padding:6px 12px}
+  .contestant-identity.has-photo{gap:1vw;grid-template-columns:minmax(0,1fr) minmax(100px,.6fr)}
+  .contestant-identity.has-photo h1{font-size:clamp(26px,2.7vw,57px)}
+  .contestant-identity.has-photo .number{font-size:clamp(16px,1.25vw,28px)}
+  .contestant-portrait img{max-height:21vh}
+  .award-person .contestant-portrait img{max-height:29vh}
+  .award-person .result-breakdown{width:100%}
+  .award-person .result-breakdown span{font-size:clamp(14px,1.05vw,24px)}
+  .award-title h2{font-size:clamp(28px,3vw,64px)}
+  .award-emblem{width:5vh;height:5vh;font-size:3vh}
+  .victory-scene .award-emblem{font-size:5vh;width:6vh;height:6vh}
+  .award-score b{font-size:clamp(45px,5vw,108px)}
+}
+@media(max-width:900px){
+  .show-header{display:grid;grid-template-columns:minmax(0,1fr) auto;gap:12px}
+  .show-center-brand{grid-column:1/-1;grid-row:2;display:flex;justify-content:center}
+  #stage-mascot{width:90px;height:85px}
+  .show-brand>#stage-logo{max-width:44vw;max-height:90px}
+  .show-bank span{font-size:11px}.show-bank b{font-size:30px}
+  .board-head,.board-row{grid-template-columns:1.2em minmax(0,1fr) 2.4em 3em 2.6em;gap:.3em}
+  .board-head>span{font-size:10px}
+  .board-pages{font-size:13px}
+}
+/* An additional non-color cue distinguishes announced audience results, including zero. */
+.board-row.audience-revealed{background:rgba(104,72,36,.32);border-color:rgba(220,169,96,.28)}
+.board-row.audience-revealed .audience{font-weight:750;color:var(--gold)}
+.board-row.current{background:rgba(var(--glow),.2);border-color:var(--accent)}
+.audience-check{font-size:.6em;color:var(--gold);margin-right:.25em;vertical-align:middle}
+.jury-suspense h1{color:var(--ink)}
+.show-bank-wrap{justify-self:end;min-width:0;display:flex;flex-direction:column;align-items:flex-end;gap:1vh}.show-context{margin:0;font-size:clamp(13px,1.05vw,23px);font-weight:650;line-height:1.35;letter-spacing:.03em;color:var(--gold);text-align:right}.phase-intro{display:flex;flex-direction:column;align-items:center;justify-content:center;width:100%;padding:3vh 5vw;text-align:center}.phase-intro h1{font-size:clamp(35px,5vw,100px);line-height:1.08;letter-spacing:-.045em;margin:1vh 0 3vh;max-width:1300px}.phase-explanation{font-size:clamp(23px,2.15vw,46px);line-height:1.5;color:var(--muted);max-width:1400px;margin:0}
+@media(max-width:900px){.show-bank-wrap{max-width:180px}.show-context{font-size:10px}.phase-intro{padding:40px 0;min-height:55vh}.phase-intro h1{font-size:37px}.phase-explanation{font-size:22px}}
+.show-center-brand{position:relative;isolation:isolate}.show-center-brand:has(#stage-mascot:not([hidden])):before{content:"";position:absolute;inset:4%;z-index:-1;border:1px solid rgba(var(--glow),.2);border-radius:50%;background:radial-gradient(ellipse,rgba(var(--glow),.16),transparent 72%);box-shadow:0 0 45px rgba(var(--glow),.1);pointer-events:none}
+/* Portrait framing only: uploaded event marks keep their original outlines. */
+.contestant-portrait{padding:4px;border:2px solid var(--gold);border-radius:50%;background:linear-gradient(145deg,#ffe9ac88,#b76c2a66);box-shadow:0 0 28px rgba(var(--glow),.16),0 12px 28px #0005}
+.contestant-portrait img,.award-person .contestant-portrait img{border-radius:50%;border:2px solid #fff0c52b;object-fit:cover;object-position:50% 30%;box-shadow:none}
+@media(max-width:900px){.contestant-portrait{padding:3px}}
+.contestant-portrait{width:min(100%,17vh);aspect-ratio:3/4;justify-self:center}
+.contestant-portrait img,.award-person .contestant-portrait img{width:100%;height:100%;max-height:none;aspect-ratio:auto}
+.award-person .contestant-portrait{width:min(100%,22vh)}
+.shared-award .contestant-portrait{width:min(100%,12vh)}
+@media(max-width:900px){.contestant-portrait{width:min(100%,150px)}.award-person .contestant-portrait{width:155px}.shared-award .contestant-portrait{width:120px}}

@@ -20,7 +20,7 @@ class BroadcastFrameTests(SimpleTestCase):
 
     def test_welcome_and_jury_never_include_unrevealed_audience(self):
         self.assertEqual(public_frame(self.show)["board"], [])
-        self.show.position = 1
+        self.show.position = 2
         frame = public_frame(self.show)
         self.assertTrue(all(r["audience"] is None for r in frame["board"]))
         self.assertNotIn("reveal_order", frame)
@@ -32,13 +32,18 @@ class BroadcastFrameTests(SimpleTestCase):
     def test_jury_lower_group_then_top_five_are_revealed_individually(self):
         self.show.snapshot = calculate(competition(9))
         result = self.show.snapshot
-        self.show.position = 1
+        self.show.position = 2
         initial = public_frame(self.show)
         self.assertEqual(sum(not r["hidden"] for r in initial["board"]), 4)
         jury_order = list(reversed(result["reveal_order"]))
         expected = list(reversed(jury_order[:5]))
         for i, cid in enumerate(expected):
-            self.show.position = i + 2
+            self.show.position = 3 + i * 2
+            suspense = public_frame(self.show)
+            self.assertEqual(suspense["scene"], "jury_points")
+            self.assertIsNone(suspense["current"])
+            self.assertEqual(sum(not r["hidden"] for r in suspense["board"]), 4 + i)
+            self.show.position += 1
             frame = public_frame(self.show)
             number = next(r["number"] for r in result["rows"] if r["id"] == cid)
             self.assertEqual(frame["scene"], "jury_top")
@@ -47,6 +52,49 @@ class BroadcastFrameTests(SimpleTestCase):
             self.assertTrue(all(r["audience"] is None for r in frame["board"]))
         self.show.position = audience_start(result)
         self.assertEqual(public_frame(self.show)["scene"], "contestant")
+
+    def test_explanations_precede_both_result_stages(self):
+        self.show.position = 1
+        jury = public_frame(self.show)
+        self.assertEqual(jury["scene"], "jury_intro")
+        self.assertTrue(jury["context"])
+        self.assertEqual(jury["board"], [])
+        self.show.position = audience_start(self.result) - 1
+        audience = public_frame(self.show)
+        self.assertEqual(audience["scene"], "audience_intro")
+        self.assertIn("найменшою", audience["context"])
+        self.assertIsNone(audience["current"])
+        self.show.position += 1
+        first = public_frame(self.show)
+        expected = next(r for r in self.result["rows"] if r["id"] == self.result["reveal_order"][0])
+        self.assertEqual(first["current"]["number"], expected["number"])
+        self.assertTrue(first["stage_label"])
+
+    def test_existing_single_frame_jury_timeline_can_continue(self):
+        self.show.flow_version = 1
+        self.show.position = 2
+        self.assertEqual(public_frame(self.show)["scene"], "jury_top")
+        self.show.position = audience_start(self.result, 1)
+        self.assertEqual(public_frame(self.show)["scene"], "contestant")
+        self.assertLess(audience_start(self.result, 1), audience_start(self.result, 2))
+
+    def test_audience_zero_is_still_marked_announced_only_after_adding(self):
+        # Use a valid competition with a genuine zero-vote contestant.
+        state = competition(4)
+        state["ballots"]["votes"][state["contestants"][-1]["id"]] = 0
+        state["ballots"]["total"] = sum(state["ballots"]["votes"].values())
+        self.show.snapshot = calculate(state)
+        start = audience_start(self.show.snapshot)
+        self.show.position = start + 1
+        before = public_frame(self.show)
+        self.assertEqual(before["current"]["audience"], 0)
+        row = next(r for r in before["board"] if r["current"])
+        self.assertFalse(row["revealed"])
+        self.show.position += 1
+        after = public_frame(self.show)
+        row = next(r for r in after["board"] if r["current"])
+        self.assertTrue(row["revealed"])
+        self.assertEqual(row["audience"], 0)
 
     def test_three_click_sequence_preserves_fixed_jury_order_and_breakdown(self):
         for i, cid in enumerate(self.result["reveal_order"]):
@@ -187,12 +235,18 @@ class BroadcastAccessTests(TestCase):
 
     def test_photos_appear_only_for_announced_contestant_and_stop_when_revoked(self):
         self.create_show()
-        self.show.position = 2
+        self.show.position = 4
         current_number = public_frame(self.show)["current"]["number"]
         contestant = next(r for r in self.show.snapshot["rows"] if r["number"] == current_number)
         Photo.objects.create(session=self.session, contestant_id=contestant["id"], data=b"stage-jpeg")
         photo_url = reverse("broadcast_photo", args=[self.show.token, current_number])
         self.assertEqual(self.client.get(photo_url).status_code, 404)
+        self.show.position = 3
+        self.show.save()
+        self.assertEqual(self.client.get(self.url).json()["frame"]["scene"], "jury_points")
+        self.assertIsNone(self.client.get(self.url).json()["frame"]["current"])
+        self.assertEqual(self.client.get(photo_url).status_code, 404)
+        self.show.position = 4
         self.show.save()
         payload = self.client.get(self.url).json()["frame"]
         self.assertEqual(payload["current"]["photo"], photo_url)
@@ -211,11 +265,42 @@ class BroadcastAccessTests(TestCase):
     def test_restart_changes_revision_and_csrf_protects_admin_controls(self):
         self.create_show()
         self.show.position = 4
+        self.show.flow_version = 1
         self.show.save()
         self.staff.post(self.manage, {"action": "restart"})
         self.show.refresh_from_db()
         self.assertEqual(self.show.position, 0)
+        self.assertEqual(self.show.flow_version, 2)
         self.assertEqual(self.show.revision, 1)
         secure = Client(enforce_csrf_checks=True)
         secure.force_login(self.owner)
         self.assertEqual(secure.post(self.manage, {"action": "revoke"}).status_code, 403)
+
+
+from django.db import connection
+from django.db.migrations.executor import MigrationExecutor
+from django.test import TransactionTestCase
+
+
+class BroadcastFlowUpgradeTests(TransactionTestCase):
+    def test_old_show_progress_is_preserved_and_new_shows_get_new_flow(self):
+        before = ("registrations", "0014_costumevotingbranding")
+        after = ("registrations", "0015_costumebroadcast_flow_version")
+        executor = MigrationExecutor(connection)
+        executor.migrate([before])
+        apps = executor.loader.project_state([before]).apps
+        session = apps.get_model("registrations", "CostumeVotingSession").objects.create(name="Existing", state={})
+        show = apps.get_model("registrations", "CostumeBroadcast").objects.create(session=session, snapshot={}, title="Existing", position=9, revision=4)
+        token = show.token
+        executor = MigrationExecutor(connection)
+        executor.migrate([after])
+        apps = executor.loader.project_state([after]).apps
+        model = apps.get_model("registrations", "CostumeBroadcast")
+        preserved = model.objects.get(pk=show.pk)
+        self.assertEqual((preserved.flow_version, preserved.position, preserved.revision, preserved.token), (1, 9, 4, token))
+        fresh = model.objects.create(session_id=session.pk, snapshot={}, title="New")
+        self.assertEqual(fresh.flow_version, 2)
+
+    def tearDown(self):
+        MigrationExecutor(connection).migrate([("registrations", "0015_costumebroadcast_flow_version")])
+        super().tearDown()

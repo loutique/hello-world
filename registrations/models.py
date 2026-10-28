@@ -144,6 +144,7 @@ class CostumeBroadcast(models.Model):
     session = models.ForeignKey(CostumeVotingSession, on_delete=models.CASCADE, related_name="broadcasts")
     token = models.CharField(max_length=64, unique=True, default=broadcast_token, editable=False)
     snapshot = models.JSONField()
+    flow_version = models.PositiveSmallIntegerField(default=2)
     title = models.CharField(max_length=200)
     theme = models.CharField(max_length=12, default="ember", choices=[("electric", "Електричний"), ("ember", "Теплий")])
     position = models.PositiveIntegerField(default=0)

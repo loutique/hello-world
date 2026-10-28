@@ -6,20 +6,20 @@ def jury_top_count(result):
     return min(5, len(result["reveal_order"]))
 
 
-def audience_start(result):
-    return 2 + jury_top_count(result)
+def audience_start(result, flow_version=2):
+    return 4 + jury_top_count(result) * 2 if flow_version >= 2 else 2 + jury_top_count(result)
 
 
-def results_position(result):
-    return audience_start(result) + 3 * len(result["reveal_order"])
+def results_position(result, flow_version=2):
+    return audience_start(result, flow_version) + 3 * len(result["reveal_order"])
 
 
 def podium_places(result):
     return sorted({r["rank"] for r in result["rows"] if r["eligible"] and r["rank"] in (1, 2, 3)}, reverse=True)
 
 
-def last_position(result):
-    return results_position(result) + len(podium_places(result)) + 1
+def last_position(result, flow_version=2):
+    return results_position(result, flow_version) + len(podium_places(result)) + 1
 
 
 def public_frame(broadcast):
@@ -28,31 +28,46 @@ def public_frame(broadcast):
     order = result["reveal_order"]
     jury_order = list(reversed(order))
     top_count = jury_top_count(result)
-    start = audience_start(result)
-    position = min(broadcast.position, last_position(result))
+    flow_version = getattr(broadcast, "flow_version", 2)
+    start = audience_start(result, flow_version)
+    position = min(broadcast.position, last_position(result, flow_version))
     frame = {"title": broadcast.title, "theme": broadcast.theme, "revision": broadcast.revision,
-        "position": position, "last": last_position(result), "count": len(order), "revealed": 0,
-        "scene": "welcome", "board": [], "current": None, "winners": [], "notices": [], "headline": "", "top_count": top_count, "awardees": [], "award_place": None}
+        "position": position, "last": last_position(result, flow_version), "count": len(order), "revealed": 0,
+        "scene": "welcome", "board": [], "current": None, "winners": [], "notices": [], "headline": "", "top_count": top_count, "awardees": [], "award_place": None, "jury_points": None, "jury_sequence": None, "stage_label": "ОГОЛОШЕННЯ РЕЗУЛЬТАТІВ", "context": ""}
     if position == 0:
+        return frame
+    if flow_version >= 2 and position in {1, start - 1}:
+        if position == 1:
+            frame.update(scene="jury_intro", headline="Починаємо з рішення журі", stage_label="ЖУРІ · ЯК ОГОЛОШУЄМО",
+                context="Зараз на екрані з’являться учасники з нижчими оцінками журі. Потім — п’ятірка лідерів, кожен окремо." if len(order) > 5 else "Зараз оголосимо рішення журі: спочатку побачимо бали, а наступним кроком дізнаємося, хто їх отримав.")
+        else:
+            frame.update(scene="audience_intro", headline="Тепер — голоси глядачів", stage_label="ГЛЯДАЧІ · НОВИЙ ЕТАП",
+                context="Почнемо з учасника з найменшою кількістю балів журі. Далі — за початковою таблицею журі, від останньої позиції до першої.")
         return frame
     shown = set()
     known_jury = set(rows)
-    if position == 1:
+    jury_group = 2 if flow_version >= 2 else 1
+    jury_start = jury_group + 1
+    if position == jury_group:
         frame["scene"] = "jury"
         known_jury = set(jury_order[top_count:])
     elif position < start:
-        frame["scene"] = "jury_top"
-        # The last K contestants of the reverse-jury queue are revealed from Kth to first.
-        top_index = position - 2
+        # A new flow first reveals points, then identity. Existing shows retain their timeline.
+        top_index, part = divmod(position - jury_start, 2) if flow_version >= 2 else (position - jury_start, 1)
+        reveal_identity = part == 1
+        frame["scene"] = "jury_top" if reveal_identity else "jury_points"
         top_queue = list(reversed(jury_order[:top_count]))
         cid = top_queue[top_index]
         r = rows[cid]
-        known_jury = set(jury_order[top_count:]) | set(top_queue[:top_index + 1])
-        frame["current"] = {"number": r["number"], "name": r["name"], "jury": r["jury_points"],
-            "audience": None, "total": r["jury_points"], "sequence": top_index + 1}
+        known_jury = set(jury_order[top_count:]) | set(top_queue[:top_index + int(reveal_identity)])
+        frame["jury_sequence"] = top_index + 1
+        frame["jury_points"] = r["jury_points"]
+        if reveal_identity:
+            frame["current"] = {"number": r["number"], "name": r["name"], "jury": r["jury_points"],
+                "audience": None, "total": r["jury_points"], "sequence": top_index + 1}
         frame["headline"] = "Рішення журі"
-    elif position >= results_position(result):
-        offset = position - results_position(result)
+    elif position >= results_position(result, flow_version):
+        offset = position - results_position(result, flow_version)
         places = podium_places(result)
         frame["scene"] = "final" if offset == 0 else "podium" if offset <= len(places) else "victory"
         frame["award_place"] = places[offset - 1] if frame["scene"] == "podium" else 1 if frame["scene"] == "victory" else None
@@ -110,4 +125,15 @@ def public_frame(broadcast):
                     frame["headline"] += " — ділять учасники"
             else:
                 frame["headline"] = "Вітаємо переможця!" if len(frame["winners"]) == 1 else "Вітаємо переможців!"
+    frame["stage_label"] = {
+        "jury": "ЖУРІ · ПЕРШІ РЕЗУЛЬТАТИ",
+        "jury_points": "ЖУРІ · СПОЧАТКУ БАЛИ",
+        "jury_top": "ЖУРІ · ОГОЛОШУЄМО УЧАСНИКА",
+        "contestant": "ГЛЯДАЧІ · ЧЕКАЄМО НА БАЛИ",
+        "audience": "ГЛЯДАЧІ · БАЛИ ОГОЛОШЕНО",
+        "combined": "СУМУ ОНОВЛЕНО · ЖУРІ + ГЛЯДАЧІ",
+        "final": "ПІДСУМКОВІ РЕЗУЛЬТАТИ",
+        "podium": "НАГОРОДЖЕННЯ",
+        "victory": "ВІТАЄМО ПЕРЕМОЖЦЯ!",
+    }.get(frame["scene"], "ОГОЛОШЕННЯ РЕЗУЛЬТАТІВ")
     return frame

@@ -4,6 +4,7 @@
   const scene = document.getElementById('scene'), message = document.getElementById('show-message');
   const next = document.getElementById('next'), previous = document.getElementById('previous');
   let frame = null, busy = false, blocked = false, page = 0, lastInteraction = 0, hideTimer, messageTimer;
+  const PAGE_SIZE = 10;
   const esc = value => String(value ?? '').replace(/[&<>"']/g, c => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
   const cookie = name => document.cookie.split('; ').find(c => c.startsWith(name + '='))?.split('=').slice(1).join('=') || '';
   const notify = text => {clearTimeout(messageTimer); message.textContent = text; message.hidden = false; messageTimer = setTimeout(() => {if(!blocked)message.hidden=true;},6000);};
@@ -37,10 +38,10 @@
     return `<section class="award-scene ${data.scene==='victory'?'victory-scene':''} ${shared?'shared-award':''}" data-place="${data.award_place}"><div class="award-halo" aria-hidden="true"></div><header class="award-title"><span class="award-emblem" aria-hidden="true">${data.scene==='victory'?'✦':data.award_place}</span><p class="eyebrow">${data.scene==='victory'?'DISCO UKRAÏNA · КОНКУРС КОСТЮМІВ':'ФІНАЛЬНИЙ П’ЄДЕСТАЛ'}</p><h2>${esc(data.headline)}</h2></header><div class="award-people">${cards}</div>${people.length>3?`<p class="award-more">Спільне місце — ${people.length} учасників. Усі імена є в підсумковій таблиці.</p>`:''}<p class="award-congratulations">${data.scene==='victory'?'Ваша мить. Ваші оплески. Дякуємо, що створили цю ніч разом із нами!':'Вітаємо! Ці оплески — для вас.'}</p>${mascot}</section>`;
   }
   function board(data) {
-    const count=data.board.length, pages=Math.max(1,Math.ceil(count/24));page=Math.min(page,pages-1);
-    const visible=data.board.slice(page*24,(page+1)*24), columns=visible.length>12?[visible.slice(0,Math.ceil(visible.length/2)),visible.slice(Math.ceil(visible.length/2))]:[visible];
-    const rows=column => `<div class="board-column"><div class="board-head"><span>#</span><span>УЧАСНИК</span><span>ЖУРІ</span><span>ГЛЯД.</span><span>РАЗОМ</span></div>${column.map(r=>`<div class="board-row ${r.current?'current':''} ${r.rank===1?'leading':''} ${r.revealed?'':'pending'}" data-number="${r.number}"><span class="rank">${r.rank??'·'}</span><div class="board-name"><small>№${r.number??'—'}</small><strong title="${esc(r.name)}">${esc(r.name)}</strong></div><span class="jury">${r.jury??'—'}</span><span class="audience">${r.audience===null?'—':r.audience}</span><span class="total">${r.total??'—'}</span></div>`).join('')}</div>`;
-    return `<section class="standing-panel"><div class="standing-title"><h2>${data.scene==='final'?'Фінальна таблиця':['jury','jury_top'].includes(data.scene)?'Рішення журі':'Таблиця результатів'}</h2><span>${data.scene==='final'?'1000 / 1000 БАЛІВ':['jury','jury_top'].includes(data.scene)?'ЖУРІ · 250 БАЛІВ':data.revealed+' / '+data.count+' РЕЗУЛЬТАТІВ'}</span></div><div class="board-columns ${columns.length>1?'two':''}">${columns.map(rows).join('')}</div>${pages>1?`<div class="board-pages"><button type="button" data-page="-1" aria-label="Попередня частина таблиці">←</button><span>Таблиця ${page+1} / ${pages}</span><button type="button" data-page="1" aria-label="Наступна частина таблиці">→</button></div>`:''}</section>`;
+    const count=data.board.length, pages=Math.max(1,Math.ceil(count/PAGE_SIZE));page=Math.min(page,pages-1);
+    const visible=data.board.slice(page*PAGE_SIZE,(page+1)*PAGE_SIZE), columns=[visible];
+    const rows=column => `<div class="board-column"><div class="board-head"><span>#</span><span>УЧАСНИК</span><span>ЖУРІ</span><span>ГЛЯДАЧІ</span><span>РАЗОМ</span></div>${column.map(r=>`<div class="board-row ${r.current?'current':''} ${r.rank===1?'leading':''} ${r.revealed?'audience-revealed':'pending'}" data-number="${r.number}"><span class="rank">${r.rank??'·'}</span><div class="board-name"><small>№${r.number??'—'}</small><strong title="${esc(r.name)}">${esc(r.name)}</strong></div><span class="jury">${r.jury??'—'}</span><span class="audience">${r.revealed?'<small class="audience-check" aria-label="Голоси оголошено">✓</small>':''}${r.audience===null?'—':r.audience}</span><span class="total">${r.total??'—'}</span></div>`).join('')}</div>`;
+    return `<section class="standing-panel"><div class="standing-title"><h2>${data.scene==='final'?'Фінальна таблиця':['jury','jury_top','jury_points'].includes(data.scene)?'Рішення журі':'Таблиця результатів'}</h2><span>${data.scene==='final'?'1000 / 1000 БАЛІВ':['jury','jury_top','jury_points'].includes(data.scene)?'ЖУРІ · 250 БАЛІВ':data.revealed+' / '+data.count+' РЕЗУЛЬТАТІВ'}</span></div><div class="board-columns ${columns.length>1?'two':''}">${columns.map(rows).join('')}</div>${pages>1?`<div class="board-pages"><button type="button" data-page="-1" aria-label="Попередня частина таблиці">←</button><span>Рядки ${page*PAGE_SIZE+1}–${Math.min(count,(page+1)*PAGE_SIZE)} із ${count}</span><button type="button" data-page="1" aria-label="Наступна частина таблиці">→</button></div>`:''}</section>`;
   }
   function render(data, animate=true) {
     const old = frame;
@@ -50,15 +51,20 @@
     document.body.dataset.scene=data.scene;
     document.body.dataset.place=data.award_place||'';
     document.getElementById('event-name').textContent=data.title;
-    document.getElementById('progress-text').textContent=data.scene==='welcome'?'ОГОЛОШЕННЯ РЕЗУЛЬТАТІВ':['jury','jury_top'].includes(data.scene)?'ОГОЛОШЕННЯ ЖУРІ':['podium','victory'].includes(data.scene)?'НАГОРОДЖЕННЯ':`ГЛЯДАЧІ: ${data.revealed} / ${data.count}`;
+    document.getElementById('show-context').textContent=data.stage_label||'ОГОЛОШЕННЯ РЕЗУЛЬТАТІВ';
+    document.getElementById('progress-text').textContent=data.scene==='welcome'?'ОГОЛОШЕННЯ РЕЗУЛЬТАТІВ':['jury','jury_top','jury_points'].includes(data.scene)?'ОГОЛОШЕННЯ ЖУРІ':['podium','victory'].includes(data.scene)?'НАГОРОДЖЕННЯ':`ГЛЯДАЧІ: ${data.revealed} / ${data.count}`;
     document.getElementById('progress-fill').style.width=(data.revealed/data.count*100)+'%';
     document.getElementById('frame-counter').textContent=`${data.position+1} / ${data.last+1}`;
     next.disabled=data.position===data.last;previous.disabled=data.position===0;
     let html;
     if(data.scene==='welcome') {
       html=welcomeSlide(data);
+    } else if(['jury_intro','audience_intro'].includes(data.scene)) {
+      html=`<section class="phase-intro"><p class="eyebrow">${data.scene==='jury_intro'?'ПЕРШИЙ ЕТАП · 250 БАЛІВ':'ДРУГИЙ ЕТАП · 750 БАЛІВ'}</p><h1>${esc(data.headline)}</h1><p class="phase-explanation">${esc(data.context)}</p></section>`;
     } else if(data.scene==='jury') {
       html=`<div class="arena jury-arena"><section class="spotlight"><p class="eyebrow">ПЕРШИЙ АКОРД</p><h1>Слово<br>журі.</h1><p>${data.count>data.top_count?'Перші результати — на екрані.':'Кожен фіналіст отримає своє оголошення.'}<br>Далі оголосимо ${data.top_count} головних результатів журі.</p><div class="result-breakdown"><div><span>Журі</span><b>25%</b></div><div><span>Глядачі</span><b>75%</b></div></div></section>${board(data)}</div>`;
+    } else if(data.scene==='jury_points') {
+      html=`<div class="arena"><section class="spotlight jury-suspense"><p class="eyebrow">ЖУРІ · ОГОЛОШЕННЯ ${data.jury_sequence} / ${data.top_count}</p><h1>Ці бали<br>отримує…</h1><div class="reveal-value score-burst">${data.jury_points}</div><span class="reveal-label">балів від журі</span><p class="headline">Кого обрало журі?</p></section>${board(data)}</div>`;
     } else if(data.scene==='jury_top') {
       const r=data.current;
       html=`<div class="arena"><section class="spotlight"><p class="eyebrow">${data.top_count===5?'П’ЯТІРКА ЖУРІ':'РЕЗУЛЬТАТИ ЖУРІ'} · ${r.sequence} / ${data.top_count}</p>${identity(r)}<div class="reveal-value score-burst">${r.jury}</div><span class="reveal-label">балів від журі</span><p class="headline">Попереду — голоси глядачів</p></section>${board(data)}</div>`;
@@ -78,7 +84,7 @@
     scene.querySelectorAll('.contestant-portrait img').forEach(img=>img.addEventListener('error',()=>{img.parentElement.remove();scene.querySelectorAll('.contestant-identity').forEach(el=>el.classList.remove('has-photo'));}));
     const currentScene=scene.firstElementChild;
     if(animate)currentScene.classList.add('entrance');
-    scene.querySelectorAll('[data-page]').forEach(button=>button.addEventListener('click',event=>{event.stopPropagation();page=(page+Number(button.dataset.page)+Math.ceil(frame.board.length/24))%Math.ceil(frame.board.length/24);render(frame,false);}));
+    scene.querySelectorAll('[data-page]').forEach(button=>button.addEventListener('click',event=>{event.stopPropagation();page=(page+Number(button.dataset.page)+Math.ceil(frame.board.length/PAGE_SIZE))%Math.ceil(frame.board.length/PAGE_SIZE);render(frame,false);}));
     if(animate&&old&&data.scene==='combined'&&!matchMedia('(prefers-reduced-motion: reduce)').matches) {
       scene.querySelectorAll('.board-row').forEach(el=>{const before=oldRects.get(el.dataset.number),after=el.getBoundingClientRect();if(before&&Math.abs(before.top-after.top)>1)el.animate([{transform:`translateY(${before.top-after.top}px)`,opacity:.45},{transform:'translateY(0)',opacity:1}],{duration:800,easing:'cubic-bezier(.2,.8,.2,1)'});});
     }
@@ -96,7 +102,7 @@
       const data=await response.json();
       if(response.status===410){blocked=true;scene.innerHTML='<section class="welcome"><p class="eyebrow">ПОКАЗ ЗУПИНЕНО</p><h1>До нових<br>зустрічей.</h1><p class="event-title">Організатор має підготувати актуальне посилання.</p></section>';next.disabled=true;previous.disabled=true;notify(data.error);return;}
       if(data.frame&&(!frame||data.frame.revision>frame.revision||(data.frame.revision===frame.revision&&data.frame.brand_version!==frame.brand_version))) {
-        if(data.frame.current){const currentIndex=data.frame.board.findIndex(r=>r.current);if(currentIndex>=0)page=Math.floor(currentIndex/24);}else page=0;
+        if(data.frame.current){const currentIndex=data.frame.board.findIndex(r=>r.current);if(currentIndex>=0)page=Math.floor(currentIndex/PAGE_SIZE);}else page=0;
         render(data.frame);
       }
       if(!response.ok){notify(data.error||'Не вдалося змінити кадр. Спробуйте ще раз.');return;}

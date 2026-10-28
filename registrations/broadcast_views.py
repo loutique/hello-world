@@ -79,8 +79,9 @@ def manage(request, pk):
                     if not show or not current(show):
                         raise VotingError("Створіть нове посилання для актуальних результатів.")
                     show.position = 0
+                    show.flow_version = 2
                     show.revision += 1
-                    show.save(update_fields=["position", "revision"])
+                    show.save(update_fields=["position", "revision", "flow_version"])
                 else:
                     raise VotingError("Невідома дія.")
             return redirect("admin:voting_broadcast", pk=pk)
@@ -122,7 +123,7 @@ def state(request, token):
             action = body.get("action")
             if action not in {"next", "previous"}:
                 return secure_response(JsonResponse({"error": "Невідома дія."}, status=400))
-            destination = max(0, min(last_position(show.snapshot), show.position + (1 if action == "next" else -1)))
+            destination = max(0, min(last_position(show.snapshot, show.flow_version), show.position + (1 if action == "next" else -1)))
             if destination != show.position:
                 show.position = destination
                 show.revision += 1

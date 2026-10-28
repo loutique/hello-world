@@ -7,8 +7,9 @@ from django.urls import reverse, path
 from django.views.decorators.csrf import ensure_csrf_cookie
 from django.views.decorators.http import require_http_methods
 from django.template.response import TemplateResponse
-from .models import CostumeBroadcast as Broadcast, CostumeVotingSession as Session, CostumeVotingPhoto as Photo
+from .models import CostumeBroadcast as Broadcast, CostumeVotingSession as Session, CostumeVotingPhoto as Photo, CostumeVotingBranding as Branding
 from .voting_views import private, page
+from .branding_images import StageBrandingForm
 from .voting_engine import calculate, VotingError
 from .broadcast_engine import public_frame, last_position
 
@@ -29,6 +30,9 @@ def frame(show):
     featured = ([payload["current"]] if payload["current"] else []) + payload["winners"] + payload.get("awardees", [])
     ids = {r["number"]: r["id"] for r in show.snapshot["rows"] if r["eligible"]}
     photo_ids = {str(cid) for cid in Photo.objects.filter(session_id=show.session_id, contestant_id__in=[ids[r["number"]] for r in featured]).values_list("contestant_id", flat=True)}
+    branding = Branding.objects.filter(session_id=show.session_id).values("logo_hash", "mascot_hash").first() or {}
+    payload["branding"] = {kind: reverse("broadcast_artwork", args=[show.token, kind]) + "?v=" + branding[kind + "_hash"] if branding.get(kind + "_hash") else None for kind in ("logo", "mascot")}
+    payload["brand_version"] = ":".join(branding.get(kind + "_hash", "") for kind in ("logo", "mascot"))
     for person in featured:
         person["photo"] = reverse("broadcast_photo", args=[show.token, person["number"]]) if ids[person["number"]] in photo_ids else None
     return payload
@@ -39,6 +43,7 @@ def frame(show):
 def manage(request, pk):
     session = get_object_or_404(Session, pk=pk)
     error = ""
+    branding_form = StageBrandingForm(request.POST or None, request.FILES or None) if request.POST.get("action") == "branding" else StageBrandingForm()
     if request.method == "POST":
         try:
             # Serialize against score changes before authorizing a fresh stage snapshot.
@@ -56,6 +61,19 @@ def manage(request, pk):
                         raise VotingError("Оберіть оформлення зі списку.")
                     session.broadcasts.filter(active=True).update(active=False)
                     Broadcast.objects.create(session=session, snapshot=calculated, title=session.name, theme=theme)
+                elif action == "branding":
+                    if not branding_form.is_valid():
+                        raise VotingError("Перевірте файли оформлення нижче.")
+                    branding, _ = Branding.objects.get_or_create(session=session)
+                    for kind in ("logo", "mascot"):
+                        image = branding_form.cleaned_data.get(kind)
+                        if image:
+                            setattr(branding, kind + "_data", image["data"])
+                            setattr(branding, kind + "_hash", image["hash"])
+                        elif branding_form.cleaned_data.get("remove_" + kind):
+                            setattr(branding, kind + "_data", None)
+                            setattr(branding, kind + "_hash", "")
+                    branding.save()
                 elif action == "restart":
                     show = session.broadcasts.select_for_update().filter(active=True).first()
                     if not show or not current(show):
@@ -71,7 +89,8 @@ def manage(request, pk):
     show = session.broadcasts.filter(active=True).order_by("-created_at").first()
     ready = show is not None and current(show)
     return page(request, "broadcast.html", title="Показ на екрані", session=session, show=show,
-        valid=ready, error=error,
+        valid=ready, error=error, branding_form=branding_form,
+        branding=Branding.objects.filter(session=session).values("logo_hash", "mascot_hash").first(),
         show_url=request.build_absolute_uri(reverse("broadcast_screen", args=[show.token])) if ready else "")
 
 
@@ -125,5 +144,18 @@ def photo(request, token, number):
     return secure_response(HttpResponse(bytes(image.data) if request.method == "GET" else b"", content_type="image/jpeg"))
 
 
-urlpatterns = [path("show/<str:token>/photo/<int:number>/", photo, name="broadcast_photo"), path("show/<str:token>/", screen, name="broadcast_screen"),
+@require_http_methods(["GET", "HEAD"])
+def artwork(request, token, kind):
+    if kind not in {"logo", "mascot"}:
+        return secure_response(HttpResponse(status=404))
+    show = get_object_or_404(Broadcast.objects.select_related("session"), token=token)
+    if not current(show):
+        return secure_response(HttpResponse(status=410))
+    image = Branding.objects.filter(session_id=show.session_id).values_list(kind + "_data", flat=True).first()
+    if not image:
+        return secure_response(HttpResponse(status=404))
+    return secure_response(HttpResponse(bytes(image) if request.method == "GET" else b"", content_type="image/png"))
+
+
+urlpatterns = [path("show/<str:token>/artwork/<str:kind>/", artwork, name="broadcast_artwork"), path("show/<str:token>/photo/<int:number>/", photo, name="broadcast_photo"), path("show/<str:token>/", screen, name="broadcast_screen"),
                path("show/<str:token>/state/", state, name="broadcast_state")]

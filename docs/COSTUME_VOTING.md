@@ -61,3 +61,9 @@ Participant photos, when supplied, appear in their individual jury and audience 
 The projector view is optimized for a 16:9 display and supports mobile. Up to 24 names fit in two balanced columns; larger competitions have table pagination, automatically bringing the featured contestant's page into view. The final rank uses exact scores while the screen always displays jury, audience and total announced points.
 
 Native select controls in the voting workspace explicitly use automatic height, a 46px minimum, a readable line height and theme-aware text/option colors. This overrides Django's fixed native select height, which would otherwise clip the larger labels and jury scores.
+
+## Original event artwork
+
+The private show-management page accepts a separate logo and mascot per competition. Upload the original PNG with alpha when available; JPEG and WebP are also accepted. Each file is limited to 4 MiB and 25 megapixels, bounded to 2048 pixels and re-encoded as PNG with existing transparency and colors retained. Backgrounds are not automatically removed and artwork is never redrawn. SVG must first be exported to PNG. Recommendations: at least 1000px wide for a logo, 1500–2000px for a mascot.
+
+`CostumeVotingBranding` stores binary images and content hashes in PostgreSQL (migration `0014`). Branding changes are allowed even after completion and never change result snapshots, revision or show position. Old stage links pick up the changed artwork via content-version polling. Only the active, valid stage token can fetch its competition's images. Logos appear in the header and welcome; mascots appear in the welcome, footer and winner celebration without covering score tables. Empty fields preserve the text layout.

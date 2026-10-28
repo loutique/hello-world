@@ -150,3 +150,13 @@ class CostumeBroadcast(models.Model):
     revision = models.PositiveIntegerField(default=0)
     active = models.BooleanField(default=True)
     created_at = models.DateTimeField(auto_now_add=True)
+
+
+class CostumeVotingBranding(models.Model):
+    """Per-competition stage artwork, independent of scoring and reveal progress."""
+    session = models.OneToOneField(CostumeVotingSession, on_delete=models.CASCADE, related_name="stage_branding")
+    logo_data = models.BinaryField(null=True, editable=False)
+    logo_hash = models.CharField(max_length=64, blank=True)
+    mascot_data = models.BinaryField(null=True, editable=False)
+    mascot_hash = models.CharField(max_length=64, blank=True)
+    updated_at = models.DateTimeField(auto_now=True)

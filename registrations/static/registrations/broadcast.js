@@ -14,10 +14,27 @@
   const values = r => `<div class="result-breakdown"><div><span>Журі</span><b>${r.jury}</b></div><div><span>Глядачі</span><b>${r.audience === null ? '—' : r.audience}</b></div><div class="total"><span>Разом</span><b>${r.total === null ? '—' : r.total}</b></div></div>`;
   const portrait = r => r.photo?`<figure class="contestant-portrait"><img src="${esc(r.photo)}" alt="${esc(r.name)}"></figure>`:'';
   const identity = r => `<div class="contestant-identity ${r.photo?'has-photo':''}"><div><p class="number">УЧАСНИК №${r.number}</p><h1 class="${r.name.length>70?'very-long-name':r.name.length>35?'long-name':''}">${esc(r.name)}</h1></div>${portrait(r)}</div>`;
+  function applyBranding(data) {
+    const branding=data.branding||{};
+    const logo=document.getElementById('stage-logo'), fallback=document.querySelector('.brand-fallback');
+    const mascot=document.getElementById('stage-mascot');
+    [[logo,branding.logo],[mascot,branding.mascot]].forEach(([img,url])=>{
+      img.hidden=!url;
+      if(url&&img.getAttribute('src')!==url)img.src=url;
+    });
+    fallback.hidden=Boolean(branding.logo);
+    logo.onerror=()=>{logo.hidden=true;fallback.hidden=false;};
+    mascot.onerror=()=>{mascot.hidden=true;};
+  }
+  function welcomeSlide(data) {
+    const brand=data.branding||{};
+    return `<section class="welcome ${brand.logo?'with-logo':''} ${brand.mascot?'with-mascot':''}"><div class="welcome-content"><p class="eyebrow">КОНКУРС КОСТЮМІВ</p>${brand.logo?`<img class="welcome-logo" src="${esc(brand.logo)}" alt="DISCO UKRAÏNA">`:''}<h1>Ця ніч.<br>Ваші фаворити.</h1><p class="event-title">${esc(data.title)}</p><div class="bank-intro"><span><b>250</b>балів від журі</span><span><b>750</b>балів від глядачів</span></div></div>${brand.mascot?`<figure class="welcome-mascot"><img src="${esc(brand.mascot)}" alt="Гарбуз — символ події"></figure>`:''}</section>`;
+  }
   function awardSlide(data) {
     const people=data.awardees, shared=people.length>1;
     const cards=people.slice(0,3).map(r=>`<article class="award-person">${portrait(r)}<p class="award-number">УЧАСНИК №${r.number}</p><h1 class="${r.name.length>70?'very-long-name':''}">${esc(r.name)}</h1><div class="award-score"><b>${r.total}</b><span>БАЛІВ</span></div>${values(r)}</article>`).join('');
-    return `<section class="award-scene ${data.scene==='victory'?'victory-scene':''} ${shared?'shared-award':''}" data-place="${data.award_place}"><div class="award-halo" aria-hidden="true"></div><header class="award-title"><span class="award-emblem" aria-hidden="true">${data.scene==='victory'?'✦':data.award_place}</span><p class="eyebrow">${data.scene==='victory'?'DISCO UKRAÏNA · КОНКУРС КОСТЮМІВ':'ФІНАЛЬНИЙ П’ЄДЕСТАЛ'}</p><h2>${esc(data.headline)}</h2></header><div class="award-people">${cards}</div>${people.length>3?`<p class="award-more">Спільне місце — ${people.length} учасників. Усі імена є в підсумковій таблиці.</p>`:''}<p class="award-congratulations">${data.scene==='victory'?'Ваша мить. Ваші оплески. Дякуємо, що створили цю ніч разом із нами!':'Вітаємо! Ці оплески — для вас.'}</p></section>`;
+    const mascot=data.scene==='victory'&&data.branding?.mascot?`<img class="award-brand-mascot" src="${esc(data.branding.mascot)}" alt="">`:'';
+    return `<section class="award-scene ${data.scene==='victory'?'victory-scene':''} ${shared?'shared-award':''}" data-place="${data.award_place}"><div class="award-halo" aria-hidden="true"></div><header class="award-title"><span class="award-emblem" aria-hidden="true">${data.scene==='victory'?'✦':data.award_place}</span><p class="eyebrow">${data.scene==='victory'?'DISCO UKRAÏNA · КОНКУРС КОСТЮМІВ':'ФІНАЛЬНИЙ П’ЄДЕСТАЛ'}</p><h2>${esc(data.headline)}</h2></header><div class="award-people">${cards}</div>${people.length>3?`<p class="award-more">Спільне місце — ${people.length} учасників. Усі імена є в підсумковій таблиці.</p>`:''}<p class="award-congratulations">${data.scene==='victory'?'Ваша мить. Ваші оплески. Дякуємо, що створили цю ніч разом із нами!':'Вітаємо! Ці оплески — для вас.'}</p>${mascot}</section>`;
   }
   function board(data) {
     const count=data.board.length, pages=Math.max(1,Math.ceil(count/24));page=Math.min(page,pages-1);
@@ -27,6 +44,7 @@
   }
   function render(data, animate=true) {
     const old = frame;
+    applyBranding(data);
     frame=data;blocked=false;message.hidden=true;
     document.body.dataset.theme=data.theme;
     document.body.dataset.scene=data.scene;
@@ -38,7 +56,7 @@
     next.disabled=data.position===data.last;previous.disabled=data.position===0;
     let html;
     if(data.scene==='welcome') {
-      html=`<section class="welcome"><p class="eyebrow">КОНКУРС КОСТЮМІВ</p><h1>Ця ніч.<br>Ваші фаворити.</h1><p class="event-title">${esc(data.title)}</p><div class="bank-intro"><span><b>250</b>балів від журі</span><span><b>750</b>балів від глядачів</span></div></section>`;
+      html=welcomeSlide(data);
     } else if(data.scene==='jury') {
       html=`<div class="arena jury-arena"><section class="spotlight"><p class="eyebrow">ПЕРШИЙ АКОРД</p><h1>Слово<br>журі.</h1><p>${data.count>data.top_count?'Перші результати — на екрані.':'Кожен фіналіст отримає своє оголошення.'}<br>Далі оголосимо ${data.top_count} головних результатів журі.</p><div class="result-breakdown"><div><span>Журі</span><b>25%</b></div><div><span>Глядачі</span><b>75%</b></div></div></section>${board(data)}</div>`;
     } else if(data.scene==='jury_top') {
@@ -77,7 +95,7 @@
       const response=await fetch(config.url,{...options,credentials:'same-origin',cache:'no-store',signal:controller.signal});
       const data=await response.json();
       if(response.status===410){blocked=true;scene.innerHTML='<section class="welcome"><p class="eyebrow">ПОКАЗ ЗУПИНЕНО</p><h1>До нових<br>зустрічей.</h1><p class="event-title">Організатор має підготувати актуальне посилання.</p></section>';next.disabled=true;previous.disabled=true;notify(data.error);return;}
-      if(data.frame&&(!frame||data.frame.revision>frame.revision)) {
+      if(data.frame&&(!frame||data.frame.revision>frame.revision||(data.frame.revision===frame.revision&&data.frame.brand_version!==frame.brand_version))) {
         if(data.frame.current){const currentIndex=data.frame.board.findIndex(r=>r.current);if(currentIndex>=0)page=Math.floor(currentIndex/24);}else page=0;
         render(data.frame);
       }
